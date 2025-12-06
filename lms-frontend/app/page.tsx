@@ -1,8 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import CourseCard from '../components/CourseCard';
-import { courses as sampleCourses } from '@/data/sampleData';
+import { useCourses } from '@/hooks/useCourses';
 
 export default function HomePage() {
+  const { data: coursesResponse, isLoading } = useCourses();
+  const courses = coursesResponse?.filter(course => course.isPublished) || [];
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -97,9 +101,26 @@ export default function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {sampleCourses.slice(0, 6).map((course) => (
-              <CourseCard key={course._id} course={course} />
-            ))}
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-300"></div>
+                  <div className="p-6">
+                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))
+            ) : courses.length > 0 ? (
+              courses.slice(0, 6).map((course: Course) => (
+                <CourseCard key={course._id} course={course} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 text-lg">No courses available yet.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -16,20 +16,23 @@ export default function InstructorPage() {
     price: 0,
     category: 'Development',
     thumbnail: '',
+    isPublished: false,
   });
 
   // Fetch instructor's courses
-  const { data: courses, isLoading } = useQuery({
+  const { data: coursesResponse, isLoading } = useQuery({
     queryKey: ['instructor-courses'],
     queryFn: async () => {
-      const data = await apiClient.get<{ success: boolean; data: any[] }>(
+      const response = await apiClient.get(
         '/courses?instructor=' + user?._id,
         localStorage.getItem('token') || ''
       );
-      return data.data;
+      return response;
     },
     enabled: !!user,
   });
+
+  const courses = coursesResponse?.data?.data || [];
 
   // Create course mutation
   const createCourse = useMutation({
@@ -48,6 +51,7 @@ export default function InstructorPage() {
         price: 0,
         category: 'Development',
         thumbnail: '',
+        isPublished: false,
       });
     },
   });
@@ -179,7 +183,7 @@ export default function InstructorPage() {
 
             {/* Right Column - Create Course Form */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white text-gray-700 rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Course</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -253,6 +257,19 @@ export default function InstructorPage() {
                       placeholder="https://example.com/image.jpg"
                       required
                     />
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isPublished"
+                      checked={newCourse.isPublished}
+                      onChange={(e) => setNewCourse({ ...newCourse, isPublished: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-900">
+                      Publish course immediately
+                    </label>
                   </div>
 
                   <button

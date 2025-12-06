@@ -59,3 +59,19 @@ export function usePurchasedCourses() {
     },
   });
 }
+
+export function useEnrollCourse() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (courseId: string) => {
+      const { data } = await api.post(`/courses/${courseId}/purchase`);
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidate purchased courses and courses queries
+      queryClient.invalidateQueries({ queryKey: ['purchased-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+  });
+}
