@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const lessonSchema = new mongoose.Schema({
   title: {
@@ -27,22 +27,22 @@ const lessonSchema = new mongoose.Schema({
 const courseSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: [true, 'Please provide a course title'],
-    maxlength: [100, 'Title cannot be more than 100 characters'],
+    required: [true, "Please provide a course title"],
+    maxlength: [100, "Title cannot be more than 100 characters"],
   },
   description: {
     type: String,
-    required: [true, 'Please provide a description'],
+    required: [true, "Please provide a description"],
   },
   instructor: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     required: true,
   },
   price: {
     type: Number,
     required: true,
-    min: [0, 'Price cannot be negative'],
+    min: [0, "Price cannot be negative"],
   },
   category: {
     type: String,
@@ -52,6 +52,11 @@ const courseSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  whatYouWillLearn: [
+    {
+      type: String,
+    },
+  ],
   rating: {
     type: Number,
     default: 0,
@@ -82,9 +87,12 @@ const courseSchema = new mongoose.Schema({
 });
 
 // Calculate total duration before saving
-courseSchema.pre('save', function (next) {
+courseSchema.pre("save", function (next) {
   try {
-    this.totalDuration = this.lessons.reduce((total, lesson) => total + lesson.duration, 0);
+    this.totalDuration = this.lessons.reduce(
+      (total, lesson) => total + lesson.duration,
+      0
+    );
     this.updatedAt = new Date();
     next();
   } catch (error) {
@@ -92,4 +100,4 @@ courseSchema.pre('save', function (next) {
   }
 });
 
-module.exports = mongoose.model('Course', courseSchema);
+module.exports = mongoose.model("Course", courseSchema);
