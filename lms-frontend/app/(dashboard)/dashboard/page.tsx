@@ -181,7 +181,6 @@ export default function DashboardPage() {
                         lastWatched: course.lastWatched,
                       },
                     }}
-                    showProgress={true}
                   />
                 ))}
               </div>
@@ -237,7 +236,6 @@ export default function DashboardPage() {
                         lastWatched: course.lastWatched,
                       },
                     }}
-                    showProgress={true}
                   />
                 ))}
               </div>
