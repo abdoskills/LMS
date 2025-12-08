@@ -18,7 +18,7 @@ export default function InstructorPage() {
   const [newCourse, setNewCourse] = useState({
     title: '',
     description: '',
-    price: 0,
+    price: '',
     category: 'Development',
     thumbnail: '',
     whatYouWillLearn: [''],
@@ -30,10 +30,9 @@ export default function InstructorPage() {
   const { data: coursesResponse, isLoading } = useQuery({
     queryKey: ['instructor-courses'],
     queryFn: async () => {
-      const response = await apiClient.get(
-        '/courses?instructor=' + user?._id,
-        localStorage.getItem('token') || ''
-      );
+      const response = await apiClient.get('/courses?instructor=' + user?._id, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       return response;
     },
     enabled: !!user,
@@ -57,7 +56,9 @@ export default function InstructorPage() {
       return apiClient.post<{ success: boolean; data: Course }>(
         '/courses',
         courseData,
-        localStorage.getItem('token') || ''
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }
       );
     },
     onSuccess: () => {
@@ -65,7 +66,7 @@ export default function InstructorPage() {
       setNewCourse({
         title: '',
         description: '',
-        price: 0,
+        price: '',
         category: 'Development',
         thumbnail: '',
         whatYouWillLearn: [''],
@@ -77,7 +78,11 @@ export default function InstructorPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createCourse.mutate(newCourse);
+    const courseData = {
+      ...newCourse,
+      price: parseFloat(newCourse.price) || 0,
+    };
+    createCourse.mutate(courseData);
   };
 
   const addWhatYouWillLearn = () => {
@@ -155,7 +160,7 @@ export default function InstructorPage() {
                     <div className="ml-4">
                       <h3 className="text-lg font-medium text-gray-900">Total Students</h3>
                       <p className="text-2xl font-bold text-gray-900">
-                        {courses?.reduce((acc, course) => acc + (course.totalStudents || 0), 0) || 0}
+                        {courses?.reduce((acc: number, course: Course) => acc + (course.totalStudents || 0), 0) || 0}
                       </p>
                     </div>
                   </div>
@@ -172,7 +177,7 @@ export default function InstructorPage() {
                       <h3 className="text-lg font-medium text-gray-900">Revenue</h3>
                       <p className="text-2xl font-bold text-gray-900">
                         $
-                        {courses?.reduce((acc, course) => acc + (course.price * (course.totalStudents || 0)), 0) || 0}
+                        {courses?.reduce((acc: number, course: Course) => acc + (course.price * (course.totalStudents || 0)), 0) || 0}
                       </p>
                     </div>
                   </div>
@@ -188,7 +193,7 @@ export default function InstructorPage() {
                   {isLoading ? (
                     <div className="p-6 text-center">Loading...</div>
                   ) : courses?.length > 0 ? (
-                    courses.map((course) => (
+                    courses.map((course: Course) => (
                       <div key={course._id} className="p-6 hover:bg-gray-50">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
@@ -322,7 +327,7 @@ export default function InstructorPage() {
                     <input
                       type="number"
                       value={newCourse.price}
-                      onChange={(e) => setNewCourse({ ...newCourse, price: parseFloat(e.target.value) })}
+                      onChange={(e) => setNewCourse({ ...newCourse, price: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.01"

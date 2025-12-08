@@ -33,6 +33,7 @@ export default function CourseLearnPage() {
 
   useEffect(() => {
     if (course?.lessons?.length > 0 && !currentLesson) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       setCurrentLesson(course.lessons[0]);
     }
   }, [course, currentLesson]);
@@ -84,8 +85,8 @@ export default function CourseLearnPage() {
 
   const handleNextLesson = () => {
     if (!course?.lessons || !currentLesson) return;
-    
-    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+
+    const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     if (currentIndex < course.lessons.length - 1) {
       setCurrentLesson(course.lessons[currentIndex + 1]);
       setIsPlaying(true);
@@ -97,8 +98,8 @@ export default function CourseLearnPage() {
 
   const handlePreviousLesson = () => {
     if (!course?.lessons || !currentLesson) return;
-    
-    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+
+    const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     if (currentIndex > 0) {
       setCurrentLesson(course.lessons[currentIndex - 1]);
       setIsPlaying(true);
@@ -134,12 +135,12 @@ export default function CourseLearnPage() {
 
   const calculateTotalDuration = () => {
     if (!course?.lessons) return 0;
-    return course.lessons.reduce((total, lesson) => total + (lesson.duration || 0), 0);
+    return course.lessons.reduce((total: number, lesson: Lesson) => total + (lesson.duration || 0), 0);
   };
 
   const calculateCompletedDuration = () => {
     if (!course?.lessons) return 0;
-    return course.lessons.reduce((total, lesson) => {
+    return course.lessons.reduce((total: number, lesson: Lesson) => {
       return completedLessons.has(lesson._id || '') ? total + (lesson.duration || 0) : total;
     }, 0);
   };
@@ -157,7 +158,7 @@ export default function CourseLearnPage() {
     );
   }
 
-  const currentIndex = course?.lessons.findIndex(l => l._id === currentLesson?._id) ?? -1;
+  const currentIndex = course?.lessons.findIndex((l: Lesson) => l._id === currentLesson?._id) ?? -1;
   const totalLessons = course?.lessons.length || 0;
   const totalDuration = calculateTotalDuration();
   const completedDuration = calculateCompletedDuration();
