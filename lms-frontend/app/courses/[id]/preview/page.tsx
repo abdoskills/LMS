@@ -41,7 +41,7 @@ export default function CoursePreviewPage() {
   const handleNextLesson = () => {
     if (!course?.lessons || !currentLesson) return;
 
-    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+    const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     // Find next preview lesson
     for (let i = currentIndex + 1; i < course.lessons.length; i++) {
       if (course.lessons[i].isPreview) {
@@ -54,7 +54,7 @@ export default function CoursePreviewPage() {
   const handlePreviousLesson = () => {
     if (!course?.lessons || !currentLesson) return;
 
-    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+    const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     // Find previous preview lesson
     for (let i = currentIndex - 1; i >= 0; i--) {
       if (course.lessons[i].isPreview) {

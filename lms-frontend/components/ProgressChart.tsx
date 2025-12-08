@@ -1,5 +1,12 @@
 import { Course } from '../types';
 
+type ProgressChartProps = {
+  courses: Array<{
+    courseId: Course;
+    progress: number;
+  }>;
+};
+
 export default function ProgressChart({ courses }: ProgressChartProps) {
   if (!courses || courses.length === 0) {
     return (

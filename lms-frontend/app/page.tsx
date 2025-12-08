@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import CourseCard from '../components/CourseCard';
 import { useCourses } from '@/hooks/useCourses';
+import { Course } from '@/types';
 
 export default function HomePage() {
   const { data: coursesResponse, isLoading } = useCourses();
-  const courses = coursesResponse?.filter(course => course.isPublished) || [];
+  const courses = coursesResponse?.filter((course: Course) => course.isPublished) || [];
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -102,7 +103,7 @@ export default function HomePage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {isLoading ? (
-              Array.from({ length: 6 }).map((_, index) => (
+              Array.from({ length: 20 }).map((_, index) => (
                 <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
                   <div className="h-48 bg-gray-300"></div>
                   <div className="p-6">
