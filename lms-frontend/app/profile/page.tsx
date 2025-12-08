@@ -26,6 +26,7 @@ interface UserProfile {
   totalLearningTime: number;
   skills: string[];
   createdAt: string;
+  recentActivities?: RecentActivity[];
 }
 
 interface Course {
@@ -58,6 +59,13 @@ interface AvatarUpdateData {
   avatar: string;
 }
 
+interface RecentActivity {
+  _id: string;
+  actionType: 'course_enrolled' | 'course_completed' | 'certificate_earned' | 'profile_updated' | 'comment_posted';
+  description: string;
+  createdAt: string;
+}
+
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -66,6 +74,17 @@ export default function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [emailForm, setEmailForm] = useState({
+    newEmail: '',
+    password: '',
+  });
 
   // Fetch user profile data
   const { data: profileResponse, isLoading: profileLoading } = useQuery({
@@ -124,6 +143,39 @@ export default function ProfilePage() {
     },
   });
 
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (passwordData: { currentPassword: string; newPassword: string }) => {
+      const response = await apiClient.put('/users/change-password', passwordData);
+      return response.data;
+    },
+    onSuccess: () => {
+      setShowPasswordForm(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      alert('Password changed successfully!');
+    },
+    onError: (error: Error) => {
+      alert('Failed to change password');
+    },
+  });
+
+  // Change email mutation
+  const changeEmailMutation = useMutation({
+    mutationFn: async (emailData: { newEmail: string; password: string }) => {
+      const response = await apiClient.put('/users/change-email', emailData);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      setShowEmailForm(false);
+      setEmailForm({ newEmail: '', password: '' });
+      alert('Email changed successfully! Please check your new email for verification.');
+    },
+    onError: (error: Error) => {
+      alert('Failed to change email');
+    },
+  });
+
 
 
   const handleAvatarClick = () => {
@@ -170,6 +222,24 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Logout failed:', error);
     }
+  };
+
+  const handleChangePassword = () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+    changePasswordMutation.mutate({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    });
+  };
+
+  const handleChangeEmail = () => {
+    changeEmailMutation.mutate({
+      newEmail: emailForm.newEmail,
+      password: emailForm.password,
+    });
   };
 
   if (!user) {
@@ -285,32 +355,34 @@ export default function ProfilePage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="quick-stats">
-              <h3>Learning Stats</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <i className="fas fa-trophy"></i>
-                  <div>
-                    <div className="stat-value">{profileData.completedCourses}</div>
-                    <div className="stat-label">Certificates</div>
+            {profileData.role === 'admin' && (
+              <div className="quick-stats">
+                <h3>Learning Stats</h3>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <i className="fas fa-trophy"></i>
+                    <div>
+                      <div className="stat-value">{profileData.completedCourses}</div>
+                      <div className="stat-label">Certificates</div>
+                    </div>
                   </div>
-                </div>
-                <div className="stat-card">
-                  <i className="fas fa-star"></i>
-                  <div>
-                    <div className="stat-value">4.8</div>
-                    <div className="stat-label">Avg. Rating</div>
+                  <div className="stat-card">
+                    <i className="fas fa-star"></i>
+                    <div>
+                      <div className="stat-value">4.8</div>
+                      <div className="stat-label">Avg. Rating</div>
+                    </div>
                   </div>
-                </div>
-                <div className="stat-card">
-                  <i className="fas fa-calendar-check"></i>
-                  <div>
-                    <div className="stat-value">{formatDate(profileData.createdAt)}</div>
-                    <div className="stat-label">Member Since</div>
+                  <div className="stat-card">
+                    <i className="fas fa-calendar-check"></i>
+                    <div>
+                      <div className="stat-value">{formatDate(profileData.createdAt)}</div>
+                      <div className="stat-label">Member Since</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Main Content */}
@@ -498,33 +570,39 @@ export default function ProfilePage() {
                   <div className="recent-activity">
                     <h3>Recent Activity</h3>
                     <div className="activity-list">
-                      <div className="activity-item">
-                        <div className="activity-icon">
-                          <i className="fas fa-play-circle"></i>
+                      {profileData.recentActivities && profileData.recentActivities.length > 0 ? (
+                        profileData.recentActivities.map((activity: RecentActivity) => (
+                          <div key={activity._id} className="activity-item">
+                            <div className="activity-icon">
+                              <i className={`fas ${
+                                activity.actionType === 'course_enrolled' ? 'fa-book-open' :
+                                activity.actionType === 'course_completed' ? 'fa-check-circle' :
+                                activity.actionType === 'certificate_earned' ? 'fa-certificate' :
+                                activity.actionType === 'profile_updated' ? 'fa-user-edit' :
+                                activity.actionType === 'comment_posted' ? 'fa-comment' :
+                                'fa-clock'
+                              }`}></i>
+                            </div>
+                            <div className="activity-content">
+                              <p dangerouslySetInnerHTML={{ __html: activity.description }}></p>
+                              <span className="activity-time">
+                                {new Date(activity.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="activity-item">
+                          <div className="activity-content">
+                            <p>No recent activity</p>
+                          </div>
                         </div>
-                        <div className="activity-content">
-                          <p>Completed <strong>UI/UX Design Masterclass</strong></p>
-                          <span className="activity-time">2 hours ago</span>
-                        </div>
-                      </div>
-                      <div className="activity-item">
-                        <div className="activity-icon">
-                          <i className="fas fa-certificate"></i>
-                        </div>
-                        <div className="activity-content">
-                          <p>Earned certificate for <strong>JavaScript Advanced Concepts</strong></p>
-                          <span className="activity-time">1 day ago</span>
-                        </div>
-                      </div>
-                      <div className="activity-item">
-                        <div className="activity-icon">
-                          <i className="fas fa-comment"></i>
-                        </div>
-                        <div className="activity-content">
-                          <p>Posted a comment on <strong>Web Development Bootcamp</strong></p>
-                          <span className="activity-time">3 days ago</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -652,18 +730,116 @@ export default function ProfilePage() {
                         </div>
                         <div className="setting-value">
                           <span>{profileData.email}</span>
-                          <button className="btn-change">Change</button>
+                          <button
+                            className="btn-change"
+                            onClick={() => setShowEmailForm(!showEmailForm)}
+                          >
+                            {showEmailForm ? 'Cancel' : 'Change'}
+                          </button>
                         </div>
                       </div>
+                      {showEmailForm && (
+                        <div className="change-form">
+                          <div className="form-group">
+                            <label htmlFor="newEmail">New Email Address</label>
+                            <input
+                              type="email"
+                              id="newEmail"
+                              value={emailForm.newEmail}
+                              onChange={(e) => setEmailForm(prev => ({ ...prev, newEmail: e.target.value }))}
+                              placeholder="Enter new email address"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label htmlFor="emailPassword">Current Password</label>
+                            <input
+                              type="password"
+                              id="emailPassword"
+                              value={emailForm.password}
+                              onChange={(e) => setEmailForm(prev => ({ ...prev, password: e.target.value }))}
+                              placeholder="Enter current password"
+                            />
+                          </div>
+                          <div className="form-actions">
+                            <button
+                              className="btn-primary"
+                              onClick={handleChangeEmail}
+                              disabled={changeEmailMutation.isPending}
+                            >
+                              {changeEmailMutation.isPending ? 'Changing...' : 'Change Email'}
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              onClick={() => setShowEmailForm(false)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <div className="setting-item">
                         <div className="setting-info">
                           <h4>Password</h4>
                           <p>Update your password to keep your account secure</p>
                         </div>
                         <div className="setting-value">
-                          <button className="btn-change">Change Password</button>
+                          <button
+                            className="btn-change"
+                            onClick={() => setShowPasswordForm(!showPasswordForm)}
+                          >
+                            {showPasswordForm ? 'Cancel' : 'Change Password'}
+                          </button>
                         </div>
                       </div>
+                      {showPasswordForm && (
+                        <div className="change-form">
+                          <div className="form-group">
+                            <label htmlFor="currentPassword">Current Password</label>
+                            <input
+                              type="password"
+                              id="currentPassword"
+                              value={passwordForm.currentPassword}
+                              onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                              placeholder="Enter current password"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label htmlFor="newPassword">New Password</label>
+                            <input
+                              type="password"
+                              id="newPassword"
+                              value={passwordForm.newPassword}
+                              onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                              placeholder="Enter new password"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label htmlFor="confirmPassword">Confirm New Password</label>
+                            <input
+                              type="password"
+                              id="confirmPassword"
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              placeholder="Confirm new password"
+                            />
+                          </div>
+                          <div className="form-actions">
+                            <button
+                              className="btn-primary"
+                              onClick={handleChangePassword}
+                              disabled={changePasswordMutation.isPending}
+                            >
+                              {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              onClick={() => setShowPasswordForm(false)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="settings-section">
