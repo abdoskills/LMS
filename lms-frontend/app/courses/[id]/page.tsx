@@ -1,256 +1,525 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCourse, useEnrollCourse } from '@/hooks/useCourses';
+import { useCourse, useUpdateProgress } from '@/hooks/useCourses';
+import { Lesson } from '@/types';
+import '@/app/CourseLearnPage.css';
 
-export default function CourseDetailPage() {
+export default function CourseLearnPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
   const { id } = params;
-
+  
   const { data, isLoading } = useCourse(id as string);
-  const enrollCourse = useEnrollCourse();
+  const updateProgress = useUpdateProgress();
+  
+  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState('lessons');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const course = data?.data;
 
-  const handleEnroll = async () => {
-    try {
-      await enrollCourse.mutateAsync(id as string);
-      router.push(`/courses/${id}/learn`);
-    } catch (error) {
-      console.error('Failed to enroll:', error);
+  useEffect(() => {
+    if (course?.lessons?.length > 0 && !currentLesson) {
+      setCurrentLesson(course.lessons[0]);
     }
+  }, [course, currentLesson]);
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+      setDuration(videoRef.current.duration || 0);
+    }
+  };
+
+  const handleLessonSelect = (lesson: Lesson) => {
+    setCurrentLesson(lesson);
+    setIsPlaying(true);
+    if (videoRef.current) {
+      videoRef.current.load();
+      setTimeout(() => videoRef.current?.play(), 100);
+    }
+  };
+
+  const handleVideoPlay = () => {
+    setIsPlaying(true);
+  };
+
+  const handleVideoPause = () => {
+    setIsPlaying(false);
+  };
+
+  const handleVideoEnded = async () => {
+    if (currentLesson) {
+      setCompletedLessons(prev => new Set([...prev, currentLesson._id || '']));
+      
+      const completedCount = completedLessons.size + 1;
+      const totalLessons = course?.lessons.length || 1;
+      const progress = Math.round((completedCount / totalLessons) * 100);
+      const completed = progress === 100;
+      
+      try {
+        await updateProgress.mutateAsync({
+          courseId: id as string,
+          progress,
+          completed,
+        });
+      } catch (error) {
+        console.error('Failed to update progress:', error);
+      }
+    }
+  };
+
+  const handleNextLesson = () => {
+    if (!course?.lessons || !currentLesson) return;
+    
+    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+    if (currentIndex < course.lessons.length - 1) {
+      setCurrentLesson(course.lessons[currentIndex + 1]);
+      setIsPlaying(true);
+      if (videoRef.current) {
+        setTimeout(() => videoRef.current?.play(), 100);
+      }
+    }
+  };
+
+  const handlePreviousLesson = () => {
+    if (!course?.lessons || !currentLesson) return;
+    
+    const currentIndex = course.lessons.findIndex(l => l._id === currentLesson._id);
+    if (currentIndex > 0) {
+      setCurrentLesson(course.lessons[currentIndex - 1]);
+      setIsPlaying(true);
+      if (videoRef.current) {
+        setTimeout(() => videoRef.current?.play(), 100);
+      }
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    setShowSpeedMenu(false);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const calculateTotalDuration = () => {
+    if (!course?.lessons) return 0;
+    return course.lessons.reduce((total, lesson) => total + (lesson.duration || 0), 0);
+  };
+
+  const calculateCompletedDuration = () => {
+    if (!course?.lessons) return 0;
+    return course.lessons.reduce((total, lesson) => {
+      return completedLessons.has(lesson._id || '') ? total + (lesson.duration || 0) : total;
+    }, 0);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!course) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Course not found</h2>
-          <Link href="/courses" className="text-blue-600 hover:text-blue-800">
-            Back to courses
-          </Link>
+      <ProtectedRoute>
+        <div className="loading-screen">
+          <div className="loader">
+            <div className="spinner"></div>
+            <p className="loading-text">Loading content...</p>
+          </div>
         </div>
-      </div>
+      </ProtectedRoute>
     );
   }
 
-  const isEnrolled = course.isPurchased;
-  const isInstructor = user?._id === (typeof course.instructor === 'string' ? course.instructor : course.instructor._id);
+  const currentIndex = course?.lessons.findIndex(l => l._id === currentLesson?._id) ?? -1;
+  const totalLessons = course?.lessons.length || 0;
+  const totalDuration = calculateTotalDuration();
+  const completedDuration = calculateCompletedDuration();
+  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="mb-4">
-                  <span className="inline-block bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {course.category}
-                  </span>
-                </div>
-                <h1 className="text-4xl lg:text-5xl font-bold mb-6">
-                  {course.title}
-                </h1>
-                <p className="text-xl mb-8 text-blue-100">
-                  {course.description}
-                </p>
-
-                <div className="flex items-center mb-6">
-                  <div className="flex items-center">
-                    <span className="text-yellow-400 text-2xl">★</span>
-                    <span className="ml-2 text-lg">
-                      {course.rating} ({course.totalStudents} students)
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center text-lg mb-8">
-                  <span>Created by </span>
-                  <span className="font-semibold ml-1">
-                    {typeof course.instructor === 'string' ? course.instructor : course.instructor.name}
-                  </span>
-                </div>
-
-                {!isInstructor && (
-                  <div className="flex items-center space-x-4">
-                    <span className="text-3xl font-bold">${course.price}</span>
-                    {isEnrolled ? (
-                      <Link
-                        href={`/courses/${course._id}/learn`}
-                        className="px-8 py-4 bg-white text-blue-600 font-bold rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        Continue Learning
-                      </Link>
-                    ) : (
-                      <button
-                        onClick={handleEnroll}
-                        disabled={enrollCourse.isPending}
-                        className="px-8 py-4 bg-white text-blue-600 font-bold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-                      >
-                        {enrollCourse.isPending ? 'Enrolling...' : 'Enroll Now'}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {isInstructor && (
-                  <div className="flex items-center space-x-4">
-                    <Link
-                      href={`/instructor/courses/${course._id}/edit`}
-                      className="px-8 py-4 bg-white text-blue-600 font-bold rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      Edit Course
-                    </Link>
-                    <Link
-                      href={`/courses/${course._id}/learn`}
-                      className="px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      Preview Course
-                    </Link>
-                  </div>
-                )}
+      <div className="course-learn-page">
+        {/* Navigation Bar */}
+        <nav className="learn-navbar">
+          <div className="nav-container">
+            <div className="nav-left">
+              <button 
+                className="back-btn"
+                onClick={() => router.push(`/courses/${id}`)}
+              >
+                <i className="fas fa-arrow-left"></i>
+                <span>Back to Course</span>
+              </button>
+              <div className="course-title">
+                <h1>{course?.title}</h1>
+                <p className="instructor-name">By {course?.instructor?.name}</p>
               </div>
-
-              <div className="lg:pl-8">
-                <div className="bg-white rounded-lg shadow-xl overflow-hidden">
-                  <div className="aspect-video bg-gray-200">
-                    <img
-                      src={course.thumbnail}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+            </div>
+            
+            <div className="nav-right">
+              <div className="progress-display">
+                <div className="progress-text">
+                  <span>Progress:</span>
+                  <strong>{course?.userProgress?.progress || 0}%</strong>
+                </div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill"
+                    style={{ width: `${course?.userProgress?.progress || 0}%` }}
+                  ></div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </nav>
 
-        {/* Course Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              {/* What You'll Learn */}
-              <div className="bg-white rounded-lg shadow-md p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">What You'll Learn</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {course.lessons.slice(0, 6).map((lesson: any, index: number) => (
-                    <div key={lesson._id || index} className="flex items-start">
-                      <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-0.5">
-                        <svg className="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="ml-3 text-gray-700">{lesson.title}</span>
+        {/* Main Content Area */}
+        <div className="main-content">
+          {/* Left Column - Video Player */}
+          <div className="player-section">
+            {/* Video Container */}
+            <div className="video-container">
+              {currentLesson ? (
+                <div className="video-wrapper">
+                  <video
+                    ref={videoRef}
+                    className="video-player"
+                    onPlay={handleVideoPlay}
+                    onPause={handleVideoPause}
+                    onEnded={handleVideoEnded}
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleTimeUpdate}
+                  >
+                    <source src={currentLesson.videoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                  
+                  {/* Video Overlay */}
+                  <div className="video-overlay">
+                    <button 
+                      className={`play-btn ${isPlaying ? 'playing' : ''}`}
+                      onClick={togglePlayPause}
+                    >
+                      <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                    </button>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="video-progress">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill"
+                        style={{ width: `${progressPercentage}%` }}
+                      ></div>
                     </div>
-                  ))}
+                    <div className="time-display">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="no-video-placeholder">
+                  <i className="fas fa-video-slash"></i>
+                  <p>Select a lesson to start</p>
+                </div>
+              )}
 
-              {/* Course Content */}
-              <div className="bg-white rounded-lg shadow-md p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Content</h2>
-                <div className="space-y-4">
-                  {course.lessons.map((lesson: any, index: number) => (
-                    <div key={lesson._id || index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-4">
-                          <span className="text-sm font-medium text-gray-600">{index + 1}</span>
+              {/* Lesson Info */}
+              <div className="lesson-info">
+                <div className="lesson-header">
+                  <div>
+                    <h2>{currentLesson?.title || 'Select a Lesson'}</h2>
+                    <p className="lesson-description">
+                      {currentLesson?.description || 'Click any lesson from the sidebar to start learning'}
+                    </p>
+                  </div>
+                  <div className="lesson-meta">
+                    <span className="lesson-number">
+                      <i className="fas fa-list-ol"></i>
+                      Lesson {currentIndex + 1} of {totalLessons}
+                    </span>
+                    {currentLesson?.duration && (
+                      <span className="lesson-duration">
+                        <i className="fas fa-clock"></i>
+                        {formatTime(currentLesson.duration)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Video Controls */}
+                <div className="video-controls">
+                  <div className="controls-left">
+                    <button 
+                      className="control-btn"
+                      onClick={handlePreviousLesson}
+                      disabled={currentIndex === 0}
+                    >
+                      <i className="fas fa-step-backward"></i>
+                      Previous
+                    </button>
+                    
+                    <div className="speed-control">
+                      <button 
+                        className="control-btn"
+                        onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                      >
+                        <i className="fas fa-tachometer-alt"></i>
+                        {playbackSpeed}x
+                      </button>
+                      {showSpeedMenu && (
+                        <div className="speed-menu">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
+                            <button
+                              key={speed}
+                              className={`speed-option ${playbackSpeed === speed ? 'active' : ''}`}
+                              onClick={() => handleSpeedChange(speed)}
+                            >
+                              {speed}x
+                            </button>
+                          ))}
                         </div>
-                        <div>
-                          <h3 className="text-lg font-medium text-gray-900">{lesson.title}</h3>
-                          <p className="text-sm text-gray-600">{lesson.description}</p>
-                          <div className="flex items-center mt-1">
-                            <span className="text-sm text-gray-500">
-                              {Math.floor(lesson.duration / 60)}:{(lesson.duration % 60).toString().padStart(2, '0')} minutes
-                            </span>
-                            {lesson.isPreview && (
-                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Preview
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {isEnrolled && (
-                        <button
-                          onClick={() => router.push(`/courses/${course._id}/learn`)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Watch
-                        </button>
                       )}
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="controls-center">
+                    <div className="play-controls">
+                      <button 
+                        className="play-control-btn"
+                        onClick={togglePlayPause}
+                      >
+                        <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                      </button>
+                      <span className={`play-status ${isPlaying ? 'playing' : 'paused'}`}>
+                        <i className={`fas fa-circle ${isPlaying ? 'fa-play' : 'fa-pause'}`}></i>
+                        {isPlaying ? 'Playing' : 'Paused'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="controls-right">
+                    <button 
+                      className="control-btn next-btn"
+                      onClick={handleNextLesson}
+                      disabled={currentIndex === totalLessons - 1}
+                    >
+                      Next
+                      <i className="fas fa-step-forward"></i>
+                    </button>
+                    
+                    {currentLesson?.isPreview && (
+                      <span className="preview-badge">
+                        <i className="fas fa-eye"></i>
+                        Free Preview
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Course Details</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Lessons</span>
-                    <span className="font-medium text-gray-900">{course.lessons.length}</span>
+            {/* Stats Cards */}
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-icon time-icon">
+                  <i className="fas fa-clock"></i>
+                </div>
+                <div className="stat-content">
+                  <h3>Time Spent</h3>
+                  <p className="stat-value">{formatTime(completedDuration)}</p>
+                </div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon complete-icon">
+                  <i className="fas fa-check-circle"></i>
+                </div>
+                <div className="stat-content">
+                  <h3>Lessons Completed</h3>
+                  <p className="stat-value">{completedLessons.size} / {totalLessons}</p>
+                </div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon remaining-icon">
+                  <i className="fas fa-hourglass-half"></i>
+                </div>
+                <div className="stat-content">
+                  <h3>Time Remaining</h3>
+                  <p className="stat-value">{formatTime(totalDuration - completedDuration)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="sidebar">
+            {/* Tabs */}
+            <div className="sidebar-tabs">
+              <button 
+                className={`tab-btn ${activeTab === 'lessons' ? 'active' : ''}`}
+                onClick={() => setActiveTab('lessons')}
+              >
+                <i className="fas fa-play-circle"></i>
+                Lessons
+              </button>
+              <button 
+                className={`tab-btn ${activeTab === 'resources' ? 'active' : ''}`}
+                onClick={() => setActiveTab('resources')}
+              >
+                <i className="fas fa-file-alt"></i>
+                Resources
+              </button>
+              <button 
+                className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
+                onClick={() => setActiveTab('notes')}
+              >
+                <i className="fas fa-edit"></i>
+                Notes
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="tab-content">
+              {activeTab === 'lessons' && (
+                <div className="lessons-list">
+                  <div className="lessons-header">
+                    <h3>Course Content</h3>
+                    <p className="lessons-count">
+                      {totalLessons} lessons • {formatTime(totalDuration)}
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Duration</span>
-                    <span className="font-medium text-gray-900">
-                      {Math.floor(course.totalDuration / 3600)}h {Math.floor((course.totalDuration % 3600) / 60)}m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Students</span>
-                    <span className="font-medium text-gray-900">{course.totalStudents}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Rating</span>
-                    <span className="font-medium text-gray-900">{course.rating}/5.0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Price</span>
-                    <span className="font-medium text-gray-900">${course.price}</span>
+                  
+                  <div className="lessons-container">
+                    {course?.lessons?.map((lesson: Lesson, index: number) => {
+                      const isCurrent = currentLesson?._id === lesson._id;
+                      const isCompleted = completedLessons.has(lesson._id || '');
+                      
+                      return (
+                        <div
+                          key={lesson._id || index}
+                          className={`lesson-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}
+                          onClick={() => handleLessonSelect(lesson)}
+                        >
+                          <div className="lesson-item-left">
+                            <div className={`lesson-number ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}>
+                              {isCompleted ? (
+                                <i className="fas fa-check"></i>
+                              ) : (
+                                <span>{index + 1}</span>
+                              )}
+                            </div>
+                            <div className="lesson-info">
+                              <h4 className="lesson-title">{lesson.title}</h4>
+                              <div className="lesson-meta">
+                                <span className="lesson-duration">
+                                  <i className="fas fa-clock"></i>
+                                  {formatTime(lesson.duration || 0)}
+                                </span>
+                                {lesson.isPreview && (
+                                  <span className="lesson-preview">
+                                    <i className="fas fa-eye"></i>
+                                    Preview
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {isCurrent && (
+                            <div className="current-indicator">
+                              <i className="fas fa-play"></i>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
-                {!isInstructor && !isEnrolled && (
-                  <button
-                    onClick={handleEnroll}
-                    disabled={enrollCourse.isPending}
-                    className="w-full mt-6 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {enrollCourse.isPending ? 'Enrolling...' : 'Enroll Now'}
-                  </button>
-                )}
-
-                {isEnrolled && (
-                  <Link
-                    href={`/courses/${course._id}/learn`}
-                    className="w-full mt-6 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors text-center block"
-                  >
-                    Continue Learning
-                  </Link>
-                )}
-              </div>
+              )}
+              
+              {activeTab === 'resources' && (
+                <div className="resources-tab">
+                  <div className="tab-header">
+                    <h3>Course Resources</h3>
+                  </div>
+                  <div className="resources-list">
+                    <div className="resource-item">
+                      <i className="fas fa-file-pdf"></i>
+                      <div>
+                        <h4>Course Syllabus</h4>
+                        <p>PDF • 2.4 MB</p>
+                      </div>
+                      <button className="download-btn">
+                        <i className="fas fa-download"></i>
+                      </button>
+                    </div>
+                    <div className="resource-item">
+                      <i className="fas fa-file-code"></i>
+                      <div>
+                        <h4>Source Code</h4>
+                        <p>ZIP • 15.2 MB</p>
+                      </div>
+                      <button className="download-btn">
+                        <i className="fas fa-download"></i>
+                      </button>
+                    </div>
+                    <div className="resource-item">
+                      <i className="fas fa-file-alt"></i>
+                      <div>
+                        <h4>Exercise Files</h4>
+                        <p>DOCX • 3.1 MB</p>
+                      </div>
+                      <button className="download-btn">
+                        <i className="fas fa-download"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'notes' && (
+                <div className="notes-tab">
+                  <div className="tab-header">
+                    <h3>My Notes</h3>
+                  </div>
+                  <div className="notes-editor">
+                    <textarea 
+                      className="notes-textarea"
+                      placeholder="Write your notes here..."
+                      rows={10}
+                    ></textarea>
+                    <button className="save-notes-btn">
+                      <i className="fas fa-save"></i>
+                      Save Notes
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
