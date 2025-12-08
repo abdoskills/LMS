@@ -1,6 +1,7 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
 const Purchase = require('../models/Purchase');
+const mongoose = require('mongoose');
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -201,12 +202,207 @@ exports.deleteCourse = async (req, res, next) => {
       });
     }
 
-    await course.deleteOne();
+    // Start a session for transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // 1. Delete the course
+      await course.deleteOne({ session });
+
+      // 2. Remove course from all users' purchased courses
+      await User.updateMany(
+        { 'purchasedCourses.courseId': req.params.id },
+        { $pull: { purchasedCourses: { courseId: req.params.id } } },
+        { session }
+      );
+
+      // 3. Delete all purchase records for this course
+      await Purchase.deleteMany(
+        { courseId: req.params.id },
+        { session }
+      );
+
+      // 4. Delete all reviews for this course
+      // Assuming you have a Review model
+      // await Review.deleteMany({ courseId: req.params.id }, { session });
+
+      // 5. Delete all enrollments for this course
+      // Assuming you have an Enrollment model
+      // await Enrollment.deleteMany({ courseId: req.params.id }, { session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Course and all related data deleted successfully',
+      });
+
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Soft delete course (archive instead of permanent delete)
+// @route   DELETE /api/courses/:id/soft
+// @access  Private (Instructor/Admin)
+exports.softDeleteCourse = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found',
+      });
+    }
+
+    // Make sure user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this course',
+      });
+    }
+
+    // Instead of deleting, mark as deleted (soft delete)
+    const deletedCourse = await Course.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.user._id,
+        isPublished: false, // Unpublish the course
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     res.status(200).json({
       success: true,
-      data: {},
+      data: deletedCourse,
+      message: 'Course archived successfully',
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Restore soft deleted course
+// @route   PUT /api/courses/:id/restore
+// @access  Private (Instructor/Admin)
+exports.restoreCourse = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found',
+      });
+    }
+
+    // Make sure user is course instructor or admin
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to restore this course',
+      });
+    }
+
+    const restoredCourse = await Course.findByIdAndUpdate(
+      req.params.id,
+      {
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: restoredCourse,
+      message: 'Course restored successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Force delete course (permanent delete - Admin only)
+// @route   DELETE /api/courses/:id/force
+// @access  Private (Admin only)
+exports.forceDeleteCourse = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found',
+      });
+    }
+
+    // Only admin can force delete
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can force delete courses',
+      });
+    }
+
+    // Start a session for transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Permanent deletion of all related data
+      await course.deleteOne({ session });
+      
+      await User.updateMany(
+        { 'purchasedCourses.courseId': req.params.id },
+        { $pull: { purchasedCourses: { courseId: req.params.id } } },
+        { session }
+      );
+      
+      await Purchase.deleteMany({ courseId: req.params.id }, { session });
+      
+      // Delete other related data if exists
+      // await Review.deleteMany({ courseId: req.params.id }, { session });
+      // await Enrollment.deleteMany({ courseId: req.params.id }, { session });
+      // await Lesson.deleteMany({ courseId: req.params.id }, { session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Course permanently deleted with all related data',
+      });
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+
   } catch (error) {
     next(error);
   }
@@ -223,6 +419,14 @@ exports.purchaseCourse = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Course not found',
+      });
+    }
+
+    // Check if course is deleted
+    if (course.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: 'This course is no longer available',
       });
     }
 
@@ -267,6 +471,34 @@ exports.purchaseCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: purchase,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get deleted courses (Admin only)
+// @route   GET /api/courses/deleted
+// @access  Private (Admin only)
+exports.getDeletedCourses = async (req, res, next) => {
+  try {
+    // Only admin can view deleted courses
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can view deleted courses',
+      });
+    }
+
+    const courses = await Course.find({ isDeleted: true })
+      .populate('instructor', 'name email')
+      .populate('deletedBy', 'name email')
+      .sort('-deletedAt');
+
+    res.status(200).json({
+      success: true,
+      count: courses.length,
+      data: courses,
     });
   } catch (error) {
     next(error);

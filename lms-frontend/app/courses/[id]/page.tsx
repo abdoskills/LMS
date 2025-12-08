@@ -3,7 +3,11 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCourse, useUpdateProgress } from '@/hooks/useCourses';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '@/lib/api';
+import Link from 'next/link';
 import { Lesson } from '@/types';
 import '@/app/CourseLearnPage.css';
 
