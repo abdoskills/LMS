@@ -19,11 +19,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        />
+      </head>
       <body className={inter.className}>
         <QueryProvider>
           <AuthProvider>
             <Navbar />
-            <main className="min-h-screen bg-gray-50">
+            <main className="pt-16 min-h-screen bg-gray-50">
               {children}
             </main>
           </AuthProvider>

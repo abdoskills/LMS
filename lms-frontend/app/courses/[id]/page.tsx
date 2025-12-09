@@ -70,9 +70,12 @@ export default function CourseLearnPage() {
 
   const handleVideoEnded = async () => {
     if (currentLesson) {
-      setCompletedLessons(prev => new Set([...prev, currentLesson._id || '']));
-      
-      const completedCount = completedLessons.size + 1;
+      // add to completed lessons using a fresh Set (avoid relying on stale state)
+      const newCompleted = new Set(completedLessons);
+      newCompleted.add(currentLesson._id || '');
+      setCompletedLessons(newCompleted);
+
+      const completedCount = newCompleted.size;
       const totalLessons = course?.lessons.length || 1;
       const progress = Math.round((completedCount / totalLessons) * 100);
       const completed = progress === 100;
@@ -153,8 +156,10 @@ export default function CourseLearnPage() {
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const secsNum = Number(seconds) || 0;
+    if (!isFinite(secsNum) || secsNum <= 0) return '0:00';
+    const mins = Math.floor(secsNum / 60);
+    const secs = Math.floor(secsNum % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -202,6 +207,7 @@ export default function CourseLearnPage() {
   const totalLessons = course?.lessons.length || 0;
   const totalDuration = calculateTotalDuration();
   const completedDuration = calculateCompletedDuration();
+  const safeRemaining = Math.max(0, totalDuration - completedDuration);
   const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -409,7 +415,7 @@ export default function CourseLearnPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="stats-grid">
+            {/* <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-icon time-icon">
                   <i className="fas fa-clock"></i>
@@ -436,10 +442,10 @@ export default function CourseLearnPage() {
                 </div>
                 <div className="stat-content">
                   <h3>Time Remaining</h3>
-                  <p className="stat-value">{formatTime(totalDuration - completedDuration)}</p>
+                  <p className="stat-value">{formatTime(safeRemaining)}</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Right Column - Sidebar */}

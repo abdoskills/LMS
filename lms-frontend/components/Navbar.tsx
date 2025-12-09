@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { Fragment } from 'react';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
@@ -19,13 +19,18 @@ function classNames(...classes: string[]) {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  // simple fixed navbar (no client-side animation to avoid parser issues)
 
   const filteredNavigation = navigation.filter((item) =>
     item.role.includes(user?.role || 'student')
   );
 
+  const wrapperClass = 'fixed top-0 left-0 right-0 z-50 transform transition-transform duration-500 ease-in-out translate-y-0';
+
   return (
-    <Disclosure as="nav" className="bg-white shadow">
+    // fixed navbar with slide-in animation
+    <div className={wrapperClass}>
+      <Disclosure as="nav" className="bg-white shadow">
       {({ open }) => (
         <>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -33,7 +38,9 @@ export default function Navbar() {
               <div className="flex">
                 <div className="flex flex-shrink-0 items-center">
                   <Link href="/" className="text-2xl font-bold text-blue-600">
-                    LMS
+                  <i className="fas fa-graduation-cap"></i>
+                    
+EduMaster
                   </Link>
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -202,6 +209,7 @@ export default function Navbar() {
           </Disclosure.Panel>
         </>
       )}
-    </Disclosure>
+      </Disclosure>
+    </div>
   );
 }

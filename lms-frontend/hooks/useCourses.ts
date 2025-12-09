@@ -28,7 +28,8 @@ export function useUpdateProgress() {
       completed: boolean;
       lastWatched?: string;
     }) => {
-      const { data } = await api.put(`/progress/${courseId}`, {
+      const { data } = await api.put(`/progress`, {
+        courseId,
         progress,
         completed,
         lastWatched,

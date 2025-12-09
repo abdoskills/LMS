@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import CourseCard from '../components/CourseCard';
+import Footer from '@/components/Footer';
 import { useCourses } from '@/hooks/useCourses';
 import { Course } from '@/types';
 
@@ -9,9 +10,10 @@ export default function HomePage() {
   const { data: coursesResponse, isLoading } = useCourses();
   const courses = coursesResponse?.filter((course: Course) => course.isPublished) || [];
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-grow">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -151,6 +153,9 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+      </main>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
