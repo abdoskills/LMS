@@ -45,12 +45,18 @@ export default function CourseLearnPage() {
     }
   };
 
-  const handleLessonSelect = (lesson: Lesson) => {
+  const handleLessonSelect = async (lesson: Lesson) => {
     setCurrentLesson(lesson);
-    setIsPlaying(true);
     if (videoRef.current) {
       videoRef.current.load();
-      setTimeout(() => videoRef.current?.play(), 100);
+      try {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) await playPromise;
+        setIsPlaying(true);
+      } catch (err) {
+        console.warn('Autoplay prevented, will wait for user interaction to play.', err);
+        setIsPlaying(false);
+      }
     }
   };
 
@@ -76,6 +82,7 @@ export default function CourseLearnPage() {
           courseId: id as string,
           progress,
           completed,
+          lastWatched: new Date().toISOString(),
         });
       } catch (error) {
         console.error('Failed to update progress:', error);
@@ -83,39 +90,57 @@ export default function CourseLearnPage() {
     }
   };
 
-  const handleNextLesson = () => {
+  const handleNextLesson = async () => {
     if (!course?.lessons || !currentLesson) return;
 
     const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     if (currentIndex < course.lessons.length - 1) {
       setCurrentLesson(course.lessons[currentIndex + 1]);
-      setIsPlaying(true);
       if (videoRef.current) {
-        setTimeout(() => videoRef.current?.play(), 100);
+        try {
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) await playPromise;
+          setIsPlaying(true);
+        } catch (err) {
+          console.warn('Autoplay prevented on next lesson.', err);
+          setIsPlaying(false);
+        }
       }
     }
   };
 
-  const handlePreviousLesson = () => {
+  const handlePreviousLesson = async () => {
     if (!course?.lessons || !currentLesson) return;
 
     const currentIndex = course.lessons.findIndex((l: Lesson) => l._id === currentLesson._id);
     if (currentIndex > 0) {
       setCurrentLesson(course.lessons[currentIndex - 1]);
-      setIsPlaying(true);
       if (videoRef.current) {
-        setTimeout(() => videoRef.current?.play(), 100);
+        try {
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) await playPromise;
+          setIsPlaying(true);
+        } catch (err) {
+          console.warn('Autoplay prevented on previous lesson.', err);
+          setIsPlaying(false);
+        }
       }
     }
   };
 
-  const togglePlayPause = () => {
-    if (videoRef.current) {
+  const togglePlayPause = async () => {
+    if (!videoRef.current) return;
+    try {
       if (isPlaying) {
         videoRef.current.pause();
+        setIsPlaying(false);
       } else {
-        videoRef.current.play();
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) await playPromise;
+        setIsPlaying(true);
       }
+    } catch (err) {
+      console.warn('Play/pause action failed:', err);
     }
   };
 
@@ -143,6 +168,21 @@ export default function CourseLearnPage() {
     return course.lessons.reduce((total: number, lesson: Lesson) => {
       return completedLessons.has(lesson._id || '') ? total + (lesson.duration || 0) : total;
     }, 0);
+  };
+
+  const isYouTubeUrl = (url?: string) => {
+    if (!url) return false;
+    return /youtu(?:\.be|be\.com)/i.test(url);
+  };
+
+  const getYouTubeEmbed = (url?: string) => {
+    if (!url) return '';
+    // extract id from various youtube url formats
+    const vMatch = url.match(/[?&]v=([^&]+)/);
+    if (vMatch && vMatch[1]) return `https://www.youtube.com/embed/${vMatch[1]}`;
+    const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+    if (shortMatch && shortMatch[1]) return `https://www.youtube.com/embed/${shortMatch[1]}`;
+    return url;
   };
 
   if (isLoading) {
@@ -209,42 +249,62 @@ export default function CourseLearnPage() {
             <div className="video-container">
               {currentLesson ? (
                 <div className="video-wrapper">
-                  <video
-                    ref={videoRef}
-                    className="video-player"
-                    onPlay={handleVideoPlay}
-                    onPause={handleVideoPause}
-                    onEnded={handleVideoEnded}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleTimeUpdate}
-                  >
-                    <source src={currentLesson.videoUrl} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                  
-                  {/* Video Overlay */}
-                  <div className="video-overlay">
-                    <button 
-                      className={`play-btn ${isPlaying ? 'playing' : ''}`}
-                      onClick={togglePlayPause}
+                  {isYouTubeUrl(currentLesson?.videoUrl) ? (
+                    <div className="video-iframe-wrapper">
+                      <iframe
+                        src={getYouTubeEmbed(currentLesson?.videoUrl)}
+                        title={currentLesson?.title || 'YouTube video'}
+                        className="video-player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      className="video-player"
+                      controls
+                      playsInline
+                      preload="metadata"
+                      onPlay={handleVideoPlay}
+                      onPause={handleVideoPause}
+                      onEnded={handleVideoEnded}
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleTimeUpdate}
                     >
-                      <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
-                    </button>
-                  </div>
+                      <source src={currentLesson.videoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+                  
+                  {/* Video Overlay (only for native <video>) */}
+                  {!isYouTubeUrl(currentLesson?.videoUrl) && (
+                    <div className="video-overlay">
+                      <button 
+                        className={`play-btn ${isPlaying ? 'playing' : ''}`}
+                        onClick={togglePlayPause}
+                      >
+                        <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                      </button>
+                    </div>
+                  )}
 
-                  {/* Progress Bar */}
-                  <div className="video-progress">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill"
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
+                  {/* Progress Bar (only for native <video>) */}
+                  {!isYouTubeUrl(currentLesson?.videoUrl) && (
+                    <div className="video-progress">
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill"
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+                      <div className="time-display">
+                        <span>{formatTime(currentTime)}</span>
+                        <span>{formatTime(duration)}</span>
+                      </div>
                     </div>
-                    <div className="time-display">
-                      <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(duration)}</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="no-video-placeholder">

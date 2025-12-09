@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const User = require("../models/User");
 
 // @desc    Update course progress
 // @route   PUT /api/progress
@@ -11,20 +11,20 @@ exports.updateProgress = async (req, res, next) => {
     if (progress < 0 || progress > 100) {
       return res.status(400).json({
         success: false,
-        message: 'Progress must be between 0 and 100',
+        message: "Progress must be between 0 and 100",
       });
     }
 
     // Update user's course progress
     const user = await User.findById(req.user._id);
     const courseIndex = user.purchasedCourses.findIndex(
-      pc => pc.courseId.toString() === courseId
+      (pc) => pc.courseId.toString() === courseId
     );
 
     if (courseIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found in user purchases',
+        message: "Course not found in user purchases",
       });
     }
 
@@ -32,6 +32,10 @@ exports.updateProgress = async (req, res, next) => {
     user.purchasedCourses[courseIndex].progress = progress;
     user.purchasedCourses[courseIndex].completed = completed || false;
     user.purchasedCourses[courseIndex].lastWatched = lastWatched || new Date();
+    // If course marked completed, set completedAt timestamp
+    if (completed) {
+      user.purchasedCourses[courseIndex].completedAt = new Date();
+    }
 
     await user.save();
 
@@ -54,11 +58,11 @@ exports.updateProgress = async (req, res, next) => {
 exports.getProgress = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).populate({
-      path: 'purchasedCourses.courseId',
-      select: 'title thumbnail category totalDuration',
+      path: "purchasedCourses.courseId",
+      select: "title thumbnail category totalDuration",
     });
 
-    const progressData = user.purchasedCourses.map(pc => ({
+    const progressData = user.purchasedCourses.map((pc) => ({
       courseId: pc.courseId._id,
       title: pc.courseId.title,
       thumbnail: pc.courseId.thumbnail,

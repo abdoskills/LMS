@@ -21,14 +21,17 @@ export function useUpdateProgress() {
       courseId,
       progress,
       completed,
+      lastWatched,
     }: {
       courseId: string;
       progress: number;
       completed: boolean;
+      lastWatched?: string;
     }) => {
       const { data } = await api.put(`/progress/${courseId}`, {
         progress,
         completed,
+        lastWatched,
       });
       return data;
     },
