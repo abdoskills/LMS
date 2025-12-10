@@ -128,7 +128,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CTA Section */}
+      {/* CTA Section
       <div className="bg-blue-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
@@ -151,8 +151,8 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        </div>
-      </div>
+        </div> */}
+      {/* </div> */}
       </main>
       {/* Footer */}
       <Footer />

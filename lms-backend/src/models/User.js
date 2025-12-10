@@ -77,6 +77,10 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
       },
+      timeSpent: {
+        type: Number,
+        default: 0, // in seconds
+      },
     },
   ],
   createdAt: {

@@ -203,7 +203,7 @@ export default function CourseLearnPage() {
     );
   }
 
-  const currentIndex = course?.lessons.findIndex((l: Lesson) => l._id === currentLesson?._id) ?? -1;
+  const currentIndex = course?.lessons?.findIndex((l: Lesson) => l._id === currentLesson?._id) ?? -1;
   const totalLessons = course?.lessons.length || 0;
   const totalDuration = calculateTotalDuration();
   const completedDuration = calculateCompletedDuration();

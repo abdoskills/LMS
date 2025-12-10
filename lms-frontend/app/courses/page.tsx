@@ -30,6 +30,15 @@ const CoursesPage: React.FC = () => {
 
   const courses: Course[] = coursesResponse?.data?.data || [];
 
+  // Filter courses based on search term and category
+  const filteredCourses = courses.filter((course: Course) => {
+    const matchesSearch = searchTerm === '' ||
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === '' || course.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const categories = [
     'All',
     'Development',
@@ -87,14 +96,9 @@ const CoursesPage: React.FC = () => {
         </div>
 
         {/* Course Grid */}
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading courses...</p>
-          </div>
-        ) : courses.length > 0 ? (
+        {filteredCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course: Course) => (
+            {filteredCourses.map((course: Course) => (
               <CourseCard key={course._id} course={course} />
             ))}
           </div>

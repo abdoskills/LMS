@@ -52,6 +52,50 @@ exports.updateProgress = async (req, res, next) => {
   }
 };
 
+// @desc    Update course time spent
+// @route   PUT /api/progress/time
+// @access  Private
+exports.updateTimeSpent = async (req, res, next) => {
+  try {
+    const { courseId, timeSpent } = req.body;
+
+    // Validate timeSpent
+    if (timeSpent < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Time spent must be non-negative",
+      });
+    }
+
+    // Update user's course time spent
+    const user = await User.findById(req.user._id);
+    const courseIndex = user.purchasedCourses.findIndex(
+      (pc) => pc.courseId.toString() === courseId
+    );
+
+    if (courseIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found in user purchases",
+      });
+    }
+
+    // Add to existing timeSpent
+    user.purchasedCourses[courseIndex].timeSpent += timeSpent;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        timeSpent: user.purchasedCourses[courseIndex].timeSpent,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get user progress for all courses
 // @route   GET /api/progress
 // @access  Private
@@ -72,6 +116,7 @@ exports.getProgress = async (req, res, next) => {
       completed: pc.completed,
       lastWatched: pc.lastWatched,
       enrolledAt: pc.enrolledAt,
+      timeSpent: pc.timeSpent,
     }));
 
     res.status(200).json({

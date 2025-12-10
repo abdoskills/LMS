@@ -38,8 +38,11 @@ export default function ProgressChart({ courses }: ProgressChartProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.slice(0, 4).map((course: any) => (
-            <div key={course.courseId._id} className="flex items-center space-x-3">
+          {courses.slice(0, 4).map((course: any, idx: number) => (
+            <div
+              key={`${course?.courseId?._id ?? course?.courseId ?? idx}`}
+              className="flex items-center space-x-3"
+            >
               <div className="flex-1">
                 <div className="text-sm font-medium text-gray-900 truncate">
                   {course.courseId.title}

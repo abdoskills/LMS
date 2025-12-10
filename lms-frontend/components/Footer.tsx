@@ -81,7 +81,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <p className="copyright">© 2024 EduMaster Instructor Dashboard. All rights reserved.</p>
+        <p className="copyright">© 2024 Abdelrahman Instructor Dashboard. All rights reserved.</p>
         <div className="footer-bottom-links">
           <a href="#">Privacy Policy</a>
           <a href="#">Terms of Service</a>

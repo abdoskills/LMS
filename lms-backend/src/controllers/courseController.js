@@ -1,7 +1,7 @@
-const Course = require('../models/Course');
-const User = require('../models/User');
-const Purchase = require('../models/Purchase');
-const mongoose = require('mongoose');
+const Course = require("../models/Course");
+const User = require("../models/User");
+const Purchase = require("../models/Purchase");
+const mongoose = require("mongoose");
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -14,28 +14,34 @@ exports.getCourses = async (req, res, next) => {
     const reqQuery = { ...req.query };
 
     // Fields to exclude
-    const removeFields = ['select', 'sort', 'page', 'limit'];
-    removeFields.forEach(param => delete reqQuery[param]);
+    const removeFields = ["select", "sort", "page", "limit"];
+    removeFields.forEach((param) => delete reqQuery[param]);
 
     // Create query string
     let queryStr = JSON.stringify(reqQuery);
-    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+    queryStr = queryStr.replace(
+      /\b(gt|gte|lt|lte|in)\b/g,
+      (match) => `$${match}`
+    );
 
     // Finding resource
-    query = Course.find(JSON.parse(queryStr)).populate('instructor', 'name email').where('isPublished').equals(true);
+    query = Course.find(JSON.parse(queryStr))
+      .populate("instructor", "name email")
+      .where("isPublished")
+      .equals(true);
 
     // Select fields
     if (req.query.select) {
-      const fields = req.query.select.split(',').join(' ');
+      const fields = req.query.select.split(",").join(" ");
       query = query.select(fields);
     }
 
     // Sort
     if (req.query.sort) {
-      const sortBy = req.query.sort.split(',').join(' ');
+      const sortBy = req.query.sort.split(",").join(" ");
       query = query.sort(sortBy);
     } else {
-      query = query.sort('-createdAt');
+      query = query.sort("-createdAt");
     }
 
     // Pagination
@@ -43,7 +49,9 @@ exports.getCourses = async (req, res, next) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const total = await Course.countDocuments(JSON.parse(queryStr)).where('isPublished').equals(true);
+    const total = await Course.countDocuments(JSON.parse(queryStr))
+      .where("isPublished")
+      .equals(true);
 
     query = query.skip(startIndex).limit(limit);
 
@@ -83,12 +91,15 @@ exports.getCourses = async (req, res, next) => {
 // @access  Public
 exports.getCourse = async (req, res, next) => {
   try {
-    const course = await Course.findById(req.params.id).populate('instructor', 'name email');
+    const course = await Course.findById(req.params.id).populate(
+      "instructor",
+      "name email"
+    );
 
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
@@ -99,15 +110,16 @@ exports.getCourse = async (req, res, next) => {
     if (req.user) {
       const user = await User.findById(req.user._id);
       const purchasedCourse = user.purchasedCourses.find(
-        pc => pc.courseId.toString() === req.params.id
+        (pc) => pc.courseId.toString() === req.params.id
       );
-      
+
       if (purchasedCourse) {
         isPurchased = true;
         userProgress = {
           progress: purchasedCourse.progress,
           completed: purchasedCourse.completed,
           lastWatched: purchasedCourse.lastWatched,
+          timeSpent: purchasedCourse.timeSpent,
         };
       }
     }
@@ -154,15 +166,18 @@ exports.updateCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
     // Make sure user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (
+      course.instructor.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this course',
+        message: "Not authorized to update this course",
       });
     }
 
@@ -190,15 +205,18 @@ exports.deleteCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
     // Make sure user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (
+      course.instructor.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this course',
+        message: "Not authorized to delete this course",
       });
     }
 
@@ -212,16 +230,13 @@ exports.deleteCourse = async (req, res, next) => {
 
       // 2. Remove course from all users' purchased courses
       await User.updateMany(
-        { 'purchasedCourses.courseId': req.params.id },
+        { "purchasedCourses.courseId": req.params.id },
         { $pull: { purchasedCourses: { courseId: req.params.id } } },
         { session }
       );
 
       // 3. Delete all purchase records for this course
-      await Purchase.deleteMany(
-        { courseId: req.params.id },
-        { session }
-      );
+      await Purchase.deleteMany({ courseId: req.params.id }, { session });
 
       // 4. Delete all reviews for this course
       // Assuming you have a Review model
@@ -238,16 +253,14 @@ exports.deleteCourse = async (req, res, next) => {
       res.status(200).json({
         success: true,
         data: {},
-        message: 'Course and all related data deleted successfully',
+        message: "Course and all related data deleted successfully",
       });
-
     } catch (error) {
       // If an error occurred, abort the transaction
       await session.abortTransaction();
       session.endSession();
       throw error;
     }
-
   } catch (error) {
     next(error);
   }
@@ -263,15 +276,18 @@ exports.softDeleteCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
     // Make sure user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (
+      course.instructor.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to delete this course',
+        message: "Not authorized to delete this course",
       });
     }
 
@@ -293,7 +309,7 @@ exports.softDeleteCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: deletedCourse,
-      message: 'Course archived successfully',
+      message: "Course archived successfully",
     });
   } catch (error) {
     next(error);
@@ -310,15 +326,18 @@ exports.restoreCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
     // Make sure user is course instructor or admin
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (
+      course.instructor.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to restore this course',
+        message: "Not authorized to restore this course",
       });
     }
 
@@ -338,7 +357,7 @@ exports.restoreCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: restoredCourse,
-      message: 'Course restored successfully',
+      message: "Course restored successfully",
     });
   } catch (error) {
     next(error);
@@ -355,15 +374,15 @@ exports.forceDeleteCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
     // Only admin can force delete
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Only admin can force delete courses',
+        message: "Only admin can force delete courses",
       });
     }
 
@@ -374,15 +393,15 @@ exports.forceDeleteCourse = async (req, res, next) => {
     try {
       // Permanent deletion of all related data
       await course.deleteOne({ session });
-      
+
       await User.updateMany(
-        { 'purchasedCourses.courseId': req.params.id },
+        { "purchasedCourses.courseId": req.params.id },
         { $pull: { purchasedCourses: { courseId: req.params.id } } },
         { session }
       );
-      
+
       await Purchase.deleteMany({ courseId: req.params.id }, { session });
-      
+
       // Delete other related data if exists
       // await Review.deleteMany({ courseId: req.params.id }, { session });
       // await Enrollment.deleteMany({ courseId: req.params.id }, { session });
@@ -394,15 +413,13 @@ exports.forceDeleteCourse = async (req, res, next) => {
       res.status(200).json({
         success: true,
         data: {},
-        message: 'Course permanently deleted with all related data',
+        message: "Course permanently deleted with all related data",
       });
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
       throw error;
     }
-
   } catch (error) {
     next(error);
   }
@@ -418,7 +435,7 @@ exports.purchaseCourse = async (req, res, next) => {
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found',
+        message: "Course not found",
       });
     }
 
@@ -426,20 +443,21 @@ exports.purchaseCourse = async (req, res, next) => {
     if (course.isDeleted) {
       return res.status(400).json({
         success: false,
-        message: 'This course is no longer available',
+        message: "This course is no longer available",
       });
     }
 
     // Check if already purchased
     const user = await User.findById(req.user._id);
     const alreadyPurchased = user.purchasedCourses.some(
-      pc => pc.courseId.toString() === req.params.id
+      (pc) => pc.courseId.toString() === req.params.id
     );
 
     if (alreadyPurchased) {
-      return res.status(400).json({
-        success: false,
-        message: 'Course already purchased',
+      // Idempotent response: if the user already purchased/enrolled, return success
+      return res.status(200).json({
+        success: true,
+        message: "Course already purchased",
       });
     }
 
@@ -448,8 +466,8 @@ exports.purchaseCourse = async (req, res, next) => {
       userId: req.user._id,
       courseId: req.params.id,
       amount: course.price,
-      paymentMethod: req.body.paymentMethod || 'stripe',
-      paymentStatus: 'completed',
+      paymentMethod: req.body.paymentMethod || "stripe",
+      paymentStatus: "completed",
     });
 
     // Add course to user's purchased courses
@@ -463,6 +481,9 @@ exports.purchaseCourse = async (req, res, next) => {
       },
     });
 
+    // Fetch updated user to return useful data to client (so frontend can refresh easily)
+    const updatedUser = await User.findById(req.user._id).select("-password");
+
     // Increment total students
     await Course.findByIdAndUpdate(req.params.id, {
       $inc: { totalStudents: 1 },
@@ -471,6 +492,7 @@ exports.purchaseCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: purchase,
+      user: updatedUser,
     });
   } catch (error) {
     next(error);
@@ -483,17 +505,17 @@ exports.purchaseCourse = async (req, res, next) => {
 exports.getDeletedCourses = async (req, res, next) => {
   try {
     // Only admin can view deleted courses
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Only admin can view deleted courses',
+        message: "Only admin can view deleted courses",
       });
     }
 
     const courses = await Course.find({ isDeleted: true })
-      .populate('instructor', 'name email')
-      .populate('deletedBy', 'name email')
-      .sort('-deletedAt');
+      .populate("instructor", "name email")
+      .populate("deletedBy", "name email")
+      .sort("-deletedAt");
 
     res.status(200).json({
       success: true,
