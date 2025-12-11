@@ -42,7 +42,7 @@ export default function PurchasePage() {
           updateUser(me.data.data);
           // Invalidate purchased-courses cache so dashboard refetches
           try {
-            queryClient.invalidateQueries(['purchased-courses']);
+            queryClient.invalidateQueries({ queryKey: ['purchased-courses'] });
           } catch (e) {
             // ignore if react-query not available
           }

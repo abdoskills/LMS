@@ -107,20 +107,25 @@ exports.getProgress = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).populate({
       path: "purchasedCourses.courseId",
-      select: "title thumbnail category totalDuration",
+      select:
+        "title thumbnail category totalDuration description instructor price rating totalStudents isPublished createdAt updatedAt",
     });
 
     const progressData = user.purchasedCourses.map((pc) => ({
+      ...pc.courseId.toObject(),
+      _id: pc.courseId._id,
       courseId: pc.courseId._id,
-      title: pc.courseId.title,
-      thumbnail: pc.courseId.thumbnail,
-      category: pc.courseId.category,
-      totalDuration: pc.courseId.totalDuration,
       progress: pc.progress,
       completed: pc.completed,
       lastWatched: pc.lastWatched,
       enrolledAt: pc.enrolledAt,
       timeSpent: pc.timeSpent,
+      isPurchased: true,
+      userProgress: {
+        progress: pc.progress,
+        completed: pc.completed,
+        lastWatched: pc.lastWatched,
+      },
     }));
 
     res.status(200).json({

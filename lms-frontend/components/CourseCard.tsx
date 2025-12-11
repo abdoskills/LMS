@@ -43,7 +43,7 @@ export default function CourseCard({ course }: CourseCardProps) {
           router.push(`/courses/${course._id}`);
           return;
         }
-      } catch (verifyErr) {
+      } catch (verifyErr: any) {
         // If verification fails due to auth, redirect to login; otherwise continue and attempt purchase
         if (verifyErr?.response?.status === 401) {
           router.push('/login');
@@ -62,7 +62,7 @@ export default function CourseCard({ course }: CourseCardProps) {
 
       // Navigate directly to the course page for free enrolls
       router.push(`/courses/${course._id}`);
-    } catch (err) {
+    } catch (err: any) {
       // Log full response for debugging
       console.error('Enroll failed', err, err?.response?.data);
       // Axios error handling
