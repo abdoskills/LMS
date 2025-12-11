@@ -67,6 +67,10 @@ interface RecentActivity {
 }
 
 export default function ProfilePage() {
+  // Inline SVG fallback avatar (data URL) to avoid missing public assets
+  const DEFAULT_AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24' fill='none' stroke='%23889be6' stroke-width='1' stroke-linecap='round' stroke-linejoin='round'><rect width='100%' height='100%' rx='4' fill='%23f1f7ff'/><circle cx='12' cy='9' r='3' fill='%23889be6' /><path d='M4.5 20a7.5 7.5 0 0 1 15 0' stroke='%23889be6' stroke-width='1.2' fill='none'/></svg>`
+  )}`;
   const { user, logout } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -287,10 +291,15 @@ export default function ProfilePage() {
             <div className="profile-card">
               <div className="avatar-section">
                 <div className="avatar-wrapper" onClick={handleAvatarClick}>
-                  <img 
-                    src={profileData.avatar || '/default-avatar.png'} 
+                  <img
+                    src={profileData.avatar || DEFAULT_AVATAR}
                     alt={profileData.name}
                     className="profile-avatar"
+                    onError={(e) => {
+                      // If the avatar URL 404s (e.g. '/default-avatar.png' missing), fall back to inline SVG
+                      const img = e.currentTarget as HTMLImageElement;
+                      if (img.src !== DEFAULT_AVATAR) img.src = DEFAULT_AVATAR;
+                    }}
                   />
                   <div className="avatar-overlay">
                     <i className="fas fa-camera"></i>
