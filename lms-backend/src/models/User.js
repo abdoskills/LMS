@@ -73,6 +73,11 @@ const userSchema = new mongoose.Schema({
         max: 100,
       },
       lastWatched: Date,
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+      },
       completed: {
         type: Boolean,
         default: false,

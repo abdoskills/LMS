@@ -171,9 +171,14 @@ export default function DashboardPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enrolledCourses.slice(0, 3).map((course: any, idx: number) => (
                   <CourseCard
-                    key={`${course?.courseId?._id ?? course?.courseId ?? idx}`}
+                    key={`${course?.courseId ?? course?.title ?? idx}`}
                     course={{
-                      ...course.courseId,
+                      _id: course.courseId,
+                      title: course.title,
+                      thumbnail: course.thumbnail,
+                      category: course.category,
+                      totalDuration: course.totalDuration,
+                      isPublished: true,
                       isPurchased: true,
                       userProgress: {
                         progress: course.progress,
@@ -226,9 +231,14 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {completedCourses.map((course: any, idx: number) => (
                   <CourseCard
-                    key={`${course?.courseId?._id ?? course?.courseId ?? idx}`}
+                    key={`${course?.courseId ?? course?.title ?? idx}`}
                     course={{
-                      ...course.courseId,
+                      _id: course.courseId,
+                      title: course.title,
+                      thumbnail: course.thumbnail,
+                      category: course.category,
+                      totalDuration: course.totalDuration,
+                      isPublished: true,
                       isPurchased: true,
                       userProgress: {
                         progress: course.progress,

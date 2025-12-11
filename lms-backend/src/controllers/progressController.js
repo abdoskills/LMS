@@ -5,7 +5,7 @@ const User = require("../models/User");
 // @access  Private
 exports.updateProgress = async (req, res, next) => {
   try {
-    const { courseId, progress, completed, lastWatched } = req.body;
+    const { courseId, progress, completed, lastWatched, rating } = req.body;
 
     // Validate progress
     if (progress < 0 || progress > 100) {
@@ -32,6 +32,10 @@ exports.updateProgress = async (req, res, next) => {
     user.purchasedCourses[courseIndex].progress = progress;
     user.purchasedCourses[courseIndex].completed = completed || false;
     user.purchasedCourses[courseIndex].lastWatched = lastWatched || new Date();
+    // Optional rating: store when provided
+    if (typeof rating === "number" && rating >= 1 && rating <= 5) {
+      user.purchasedCourses[courseIndex].rating = rating;
+    }
     // If course marked completed, set completedAt timestamp
     if (completed) {
       user.purchasedCourses[courseIndex].completedAt = new Date();

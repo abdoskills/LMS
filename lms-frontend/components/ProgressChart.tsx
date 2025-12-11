@@ -1,10 +1,10 @@
 import { Course } from '../types';
 
 type ProgressChartProps = {
-  courses: Array<{
-    courseId: Course;
-    progress: number;
-  }>;
+  // support two shapes:
+  // 1) { courseId: Course, progress: number }
+  // 2) { _id, title, thumbnail, progress }
+  courses: Array<any>;
 };
 
 export default function ProgressChart({ courses }: ProgressChartProps) {
@@ -17,7 +17,7 @@ export default function ProgressChart({ courses }: ProgressChartProps) {
     );
   }
 
-  const totalProgress = courses.reduce((acc, course) => acc + course.progress, 0) / courses.length;
+  const totalProgress = courses.reduce((acc: number, course: any) => acc + (Number(course.progress) || 0), 0) / courses.length;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -38,28 +38,28 @@ export default function ProgressChart({ courses }: ProgressChartProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.slice(0, 4).map((course: any, idx: number) => (
-            <div
-              key={`${course?.courseId?._id ?? course?.courseId ?? idx}`}
-              className="flex items-center space-x-3"
-            >
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {course.courseId.title}
-                </div>
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <span>Progress</span>
-                  <span>{course.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                  <div
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${course.progress}%` }}
-                  ></div>
+          {courses.slice(0, 4).map((course: any, idx: number) => {
+            const title = course.courseId?.title ?? course.title ?? 'Course';
+            const progress = Number(course.progress) || 0;
+            const key = course.courseId?._id ?? course._id ?? course.courseId ?? idx;
+            return (
+              <div key={String(key)} className="flex items-center space-x-3">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">{title}</div>
+                  <div className="flex justify-between text-xs text-gray-600 mt-1">
+                    <span>Progress</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
