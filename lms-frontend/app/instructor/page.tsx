@@ -11,10 +11,8 @@ import { Course } from '@/types';
 export default function InstructorPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
-  const [deleteType, setDeleteType] = useState<string>('soft');
-  const [confirmText, setConfirmText] = useState<string>('');
-  const [showDeleteOptions, setShowDeleteOptions] = useState<boolean>(false);
   const [newCourse, setNewCourse] = useState({
     title: '',
     description: '',
@@ -73,11 +71,14 @@ export default function InstructorPage() {
         lessons: [{ title: '', description: '', videoUrl: '', duration: 0, order: 1, isPreview: false }],
         isPublished: false,
       });
-      alert('Course created successfully. Publish it to make it visible on Home/Courses pages.');
+      setFeedback({
+        type: 'success',
+        message: 'Course created successfully. Publish it to make it visible on Home and Courses pages.',
+      });
     },
     onError: (error: any) => {
       const message = error?.response?.data?.message || 'Failed to create course';
-      alert(message);
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -88,10 +89,11 @@ export default function InstructorPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      setFeedback({ type: 'success', message: 'Course visibility updated successfully.' });
     },
     onError: (error: any) => {
       const message = error?.response?.data?.message || 'Failed to update course visibility';
-      alert(message);
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -148,6 +150,17 @@ export default function InstructorPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Instructor Dashboard</h1>
             <p className="mt-2 text-gray-600">Manage your courses and students</p>
+            {feedback && (
+              <div
+                className={`mt-4 rounded-md px-4 py-3 text-sm ${
+                  feedback.type === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+              >
+                {feedback.message}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -478,7 +491,7 @@ export default function InstructorPage() {
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  Video URL or Upload
+                                  Video URL
                                 </label>
                                 <input
                                   type="url"
@@ -486,17 +499,6 @@ export default function InstructorPage() {
                                   onChange={(e) => updateLesson(index, 'videoUrl', e.target.value)}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                   placeholder="https://..."
-                                />
-                                <input
-                                  type="file"
-                                  accept="video/*"
-                                  onChange={(e) => {
-                                    // Handle file upload here - for now just set a placeholder
-                                    if (e.target.files?.[0]) {
-                                      updateLesson(index, 'videoUrl', `uploaded-${e.target.files[0].name}`);
-                                    }
-                                  }}
-                                  className="w-full mt-1 text-sm"
                                 />
                               </div>
 

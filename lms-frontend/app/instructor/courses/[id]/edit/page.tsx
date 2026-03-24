@@ -322,7 +322,7 @@ export default function EditCoursePage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Video URL or Upload
+                              Video URL
                             </label>
                             <input
                               type="url"
@@ -330,17 +330,6 @@ export default function EditCoursePage() {
                               onChange={(e) => updateLesson(index, 'videoUrl', e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900"
                               placeholder="https://..."
-                            />
-                            <input
-                              type="file"
-                              accept="video/*"
-                              onChange={(e) => {
-                                // Handle file upload here - for now just set a placeholder
-                                if (e.target.files?.[0]) {
-                                  updateLesson(index, 'videoUrl', `uploaded-${e.target.files[0].name}`);
-                                }
-                              }}
-                              className="w-full mt-1 text-sm text-gray-900"
                             />
                           </div>
 

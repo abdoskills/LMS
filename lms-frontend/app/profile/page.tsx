@@ -80,6 +80,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -133,6 +134,11 @@ export default function ProfilePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       setIsEditing(false);
+      setFeedback({ type: 'success', message: 'Profile updated successfully.' });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to update profile.';
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -144,6 +150,11 @@ export default function ProfilePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      setFeedback({ type: 'success', message: 'Profile photo updated successfully.' });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to update profile photo.';
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -156,10 +167,11 @@ export default function ProfilePage() {
     onSuccess: () => {
       setShowPasswordForm(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      alert('Password changed successfully!');
+      setFeedback({ type: 'success', message: 'Password changed successfully.' });
     },
-    onError: (error: Error) => {
-      alert('Failed to change password');
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to change password.';
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -173,10 +185,11 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       setShowEmailForm(false);
       setEmailForm({ newEmail: '', password: '' });
-      alert('Email changed successfully! Please check your new email for verification.');
+      setFeedback({ type: 'success', message: 'Email changed successfully. Please verify your new email.' });
     },
-    onError: (error: Error) => {
-      alert('Failed to change email');
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to change email.';
+      setFeedback({ type: 'error', message });
     },
   });
 
@@ -189,8 +202,26 @@ export default function ProfilePage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO: Implement avatar upload to backend
-      console.log('Avatar upload not implemented yet');
+      if (!file.type.startsWith('image/')) {
+        setFeedback({ type: 'error', message: 'Please select a valid image file.' });
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setFeedback({ type: 'error', message: 'Image must be smaller than 2MB.' });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          updateAvatarMutation.mutate({ avatar: result });
+        } else {
+          setFeedback({ type: 'error', message: 'Failed to read selected image.' });
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -230,7 +261,7 @@ export default function ProfilePage() {
 
   const handleChangePassword = () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match');
+      setFeedback({ type: 'error', message: 'New passwords do not match.' });
       return;
     }
     changePasswordMutation.mutate({
@@ -281,6 +312,17 @@ export default function ProfilePage() {
         <div className="container">
           <h1>My Profile</h1>
           <p className="header-subtitle">Manage your account and track your learning progress</p>
+          {feedback && (
+            <div
+              className={`mt-4 rounded-md px-4 py-3 text-sm ${
+                feedback.type === 'success'
+                  ? 'bg-green-50 text-green-800 border border-green-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
+            >
+              {feedback.message}
+            </div>
+          )}
         </div>
       </div>
 

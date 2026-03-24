@@ -1,6 +1,7 @@
 "use client";
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
 import { Course } from '../types';
 import apiClient from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +14,8 @@ interface CourseCardProps {
 export default function CourseCard({ course }: CourseCardProps) {
   const { updateUser, user } = useAuth();
   const router = useRouter();
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isEnrolled =
     Boolean(course.isPurchased) ||
@@ -23,7 +26,15 @@ export default function CourseCard({ course }: CourseCardProps) {
     );
 
   const handleEnroll = async () => {
+    setActionError(null);
+    setIsEnrolling(true);
     try {
+      // If user is not authenticated, go to login before any API requests
+      if (!user?._id) {
+        router.push(`/login?next=${encodeURIComponent(`/courses/${course._id}`)}`);
+        return;
+      }
+
       // Avoid duplicate purchase requests when already enrolled
       if (isEnrolled) {
         router.push(`/courses/${course._id}`);
@@ -70,6 +81,14 @@ export default function CourseCard({ course }: CourseCardProps) {
       const status = err?.response?.status;
       const message = err?.response?.data?.message || err?.message;
 
+      // Token is invalid/expired/malformed, force fresh login
+      if (typeof message === 'string' && message.toLowerCase().includes('jwt')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push(`/login?next=${encodeURIComponent(`/courses/${course._id}`)}`);
+        return;
+      }
+
       // If already purchased, refresh user and navigate to dashboard
       if (status === 400 && typeof message === 'string' && message.toLowerCase().includes('already purchased')) {
         try {
@@ -84,12 +103,19 @@ export default function CourseCard({ course }: CourseCardProps) {
 
       if (status === 401) {
         // Not authenticated
-        router.push('/login');
+        router.push(`/login?next=${encodeURIComponent(`/courses/${course._id}`)}`);
         return;
       }
 
-      // Generic error: show message to user
-      alert(message || 'Enroll failed. Please try again.');
+      if (status === 403) {
+        setActionError('You do not have permission to enroll in this course with the current account.');
+        return;
+      }
+
+      // Generic error: show friendly inline message instead of browser alert
+      setActionError(message || 'Enrollment failed. Please try again.');
+    } finally {
+      setIsEnrolling(false);
     }
   };
   return (
@@ -141,10 +167,18 @@ export default function CourseCard({ course }: CourseCardProps) {
           ) : course.price === 0 ? (
             <button
               onClick={handleEnroll}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              disabled={isEnrolling}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
             >
-              Join Free
+              {isEnrolling ? 'Joining...' : 'Join Free'}
             </button>
+          ) : !user?._id ? (
+            <Link
+              href={`/login?next=${encodeURIComponent(`/purchase/${course._id}`)}`}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Enroll
+            </Link>
           ) : (
             <Link
               href={`/purchase/${course._id}`}
@@ -162,6 +196,10 @@ export default function CourseCard({ course }: CourseCardProps) {
               : course.instructor?.name ?? 'Unknown Instructor'
           }
         </div>
+
+        {actionError && (
+          <p className="mt-2 text-sm text-red-600">{actionError}</p>
+        )}
       </div>
     </div>
   );

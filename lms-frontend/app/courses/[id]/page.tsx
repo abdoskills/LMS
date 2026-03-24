@@ -22,9 +22,7 @@ export default function CourseLearnPage() {
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState('lessons');
+  const [activeTab, setActiveTab] = useState<'lessons' | 'resources'>('lessons');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -147,14 +145,6 @@ export default function CourseLearnPage() {
     }
   };
 
-  const handleSpeedChange = (speed: number) => {
-    setPlaybackSpeed(speed);
-    setShowSpeedMenu(false);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const secsNum = Number(seconds) || 0;
     if (!isFinite(secsNum) || secsNum <= 0) return '0:00';
@@ -188,6 +178,40 @@ export default function CourseLearnPage() {
     const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
     if (shortMatch && shortMatch[1]) return `https://www.youtube.com/embed/${shortMatch[1]}`;
     return url;
+  };
+
+  const downloadResource = (type: 'syllabus' | 'source' | 'exercise') => {
+    const courseTitle = course?.title || 'course';
+    const safeTitle = courseTitle.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const lessonLines = (course?.lessons || [])
+      .map((lesson: Lesson, idx: number) => `${idx + 1}. ${lesson.title} (${formatTime(lesson.duration || 0)})`)
+      .join('\n');
+
+    const resourcesMap = {
+      syllabus: {
+        fileName: `${safeTitle}-syllabus.txt`,
+        content: `Course Syllabus\n\nTitle: ${courseTitle}\nCategory: ${course?.category || 'General'}\nPrice: $${course?.price ?? 0}\n\nLessons:\n${lessonLines}`,
+      },
+      source: {
+        fileName: `${safeTitle}-source-links.txt`,
+        content: `Source/Reference Links\n\nCourse: ${courseTitle}\n\nAdd your source links here.`,
+      },
+      exercise: {
+        fileName: `${safeTitle}-exercise-files.txt`,
+        content: `Exercise Files\n\nCourse: ${courseTitle}\n\nUse this file to track exercise tasks and submissions.`,
+      },
+    };
+
+    const selected = resourcesMap[type];
+    const blob = new Blob([selected.content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = selected.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -353,29 +377,6 @@ export default function CourseLearnPage() {
                       <i className="fas fa-step-backward"></i>
                       Previous
                     </button>
-                    
-                    <div className="speed-control">
-                      <button 
-                        className="control-btn"
-                        onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                      >
-                        <i className="fas fa-tachometer-alt"></i>
-                        {playbackSpeed}x
-                      </button>
-                      {showSpeedMenu && (
-                        <div className="speed-menu">
-                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(speed => (
-                            <button
-                              key={speed}
-                              className={`speed-option ${playbackSpeed === speed ? 'active' : ''}`}
-                              onClick={() => handleSpeedChange(speed)}
-                            >
-                              {speed}x
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
                   </div>
                   
                   <div className="controls-center">
@@ -450,143 +451,109 @@ export default function CourseLearnPage() {
 
           {/* Right Column - Sidebar */}
           <div className="sidebar">
-            {/* Tabs */}
             <div className="sidebar-tabs">
-              <button 
+              <button
+                type="button"
                 className={`tab-btn ${activeTab === 'lessons' ? 'active' : ''}`}
                 onClick={() => setActiveTab('lessons')}
               >
                 <i className="fas fa-play-circle"></i>
                 Lessons
               </button>
-              <button 
+              <button
+                type="button"
                 className={`tab-btn ${activeTab === 'resources' ? 'active' : ''}`}
                 onClick={() => setActiveTab('resources')}
               >
-                <i className="fas fa-file-alt"></i>
+                <i className="fas fa-file-download"></i>
                 Resources
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
-                onClick={() => setActiveTab('notes')}
-              >
-                <i className="fas fa-edit"></i>
-                Notes
               </button>
             </div>
 
-            {/* Tab Content */}
             <div className="tab-content">
               {activeTab === 'lessons' && (
-                <div className="lessons-list">
-                  <div className="lessons-header">
-                    <h3>Course Content</h3>
-                    <p className="lessons-count">
-                      {totalLessons} lessons • {formatTime(totalDuration)}
-                    </p>
-                  </div>
-                  
-                  <div className="lessons-container">
-                    {course?.lessons?.map((lesson: Lesson, index: number) => {
-                      const isCurrent = currentLesson?._id === lesson._id;
-                      const isCompleted = completedLessons.has(lesson._id || '');
-                      
-                      return (
-                        <div
-                          key={lesson._id || index}
-                          className={`lesson-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}
-                          onClick={() => handleLessonSelect(lesson)}
-                        >
-                          <div className="lesson-item-left">
-                            <div className={`lesson-number ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}>
-                              {isCompleted ? (
-                                <i className="fas fa-check"></i>
-                              ) : (
-                                <span>{index + 1}</span>
+              <div className="lessons-list">
+                <div className="lessons-header">
+                  <h3>Course Content</h3>
+                  <p className="lessons-count">
+                    {totalLessons} lessons • {formatTime(totalDuration)}
+                  </p>
+                </div>
+
+                <div className="lessons-container">
+                  {course?.lessons?.map((lesson: Lesson, index: number) => {
+                    const isCurrent = currentLesson?._id === lesson._id;
+                    const isCompleted = completedLessons.has(lesson._id || '');
+
+                    return (
+                      <div
+                        key={lesson._id || index}
+                        className={`lesson-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}
+                        onClick={() => handleLessonSelect(lesson)}
+                      >
+                        <div className="lesson-item-left">
+                          <div className={`lesson-number ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}>
+                            {isCompleted ? (
+                              <i className="fas fa-check"></i>
+                            ) : (
+                              <span>{index + 1}</span>
+                            )}
+                          </div>
+                          <div className="lesson-info">
+                            <h4 className="lesson-title">{lesson.title}</h4>
+                            <div className="lesson-meta">
+                              <span className="lesson-duration">
+                                <i className="fas fa-clock"></i>
+                                {formatTime(lesson.duration || 0)}
+                              </span>
+                              {lesson.isPreview && (
+                                <span className="lesson-preview">
+                                  <i className="fas fa-eye"></i>
+                                  Preview
+                                </span>
                               )}
                             </div>
-                            <div className="lesson-info">
-                              <h4 className="lesson-title">{lesson.title}</h4>
-                              <div className="lesson-meta">
-                                <span className="lesson-duration">
-                                  <i className="fas fa-clock"></i>
-                                  {formatTime(lesson.duration || 0)}
-                                </span>
-                                {lesson.isPreview && (
-                                  <span className="lesson-preview">
-                                    <i className="fas fa-eye"></i>
-                                    Preview
-                                  </span>
-                                )}
-                              </div>
-                            </div>
                           </div>
-                          {isCurrent && (
-                            <div className="current-indicator">
-                              <i className="fas fa-play"></i>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                        {isCurrent && (
+                          <div className="current-indicator">
+                            <i className="fas fa-play"></i>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
               )}
-              
+
               {activeTab === 'resources' && (
                 <div className="resources-tab">
-                  <div className="tab-header">
+                  <div className="lessons-header">
                     <h3>Course Resources</h3>
+                    <p className="lessons-count">Download learning materials</p>
                   </div>
-                  <div className="resources-list">
-                    <div className="resource-item">
-                      <i className="fas fa-file-pdf"></i>
-                      <div>
-                        <h4>Course Syllabus</h4>
-                        <p>PDF • 2.4 MB</p>
-                      </div>
-                      <button className="download-btn">
-                        <i className="fas fa-download"></i>
-                      </button>
-                    </div>
-                    <div className="resource-item">
-                      <i className="fas fa-file-code"></i>
-                      <div>
-                        <h4>Source Code</h4>
-                        <p>ZIP • 15.2 MB</p>
-                      </div>
-                      <button className="download-btn">
-                        <i className="fas fa-download"></i>
-                      </button>
-                    </div>
-                    <div className="resource-item">
+                  <div className="space-y-3 p-3">
+                    <button className="resource-item w-full" onClick={() => downloadResource('syllabus')}>
                       <i className="fas fa-file-alt"></i>
                       <div>
-                        <h4>Exercise Files</h4>
-                        <p>DOCX • 3.1 MB</p>
+                        <h4>Course Syllabus</h4>
+                        <p>TXT download</p>
                       </div>
-                      <button className="download-btn">
-                        <i className="fas fa-download"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'notes' && (
-                <div className="notes-tab">
-                  <div className="tab-header">
-                    <h3>My Notes</h3>
-                  </div>
-                  <div className="notes-editor">
-                    <textarea 
-                      className="notes-textarea"
-                      placeholder="Write your notes here..."
-                      rows={10}
-                    ></textarea>
-                    <button className="save-notes-btn">
-                      <i className="fas fa-save"></i>
-                      Save Notes
+                    </button>
+                    <button className="resource-item w-full" onClick={() => downloadResource('source')}>
+                      <i className="fas fa-code"></i>
+                      <div>
+                        <h4>Source Code Links</h4>
+                        <p>TXT download</p>
+                      </div>
+                    </button>
+                    <button className="resource-item w-full" onClick={() => downloadResource('exercise')}>
+                      <i className="fas fa-tasks"></i>
+                      <div>
+                        <h4>Exercise Files</h4>
+                        <p>TXT download</p>
+                      </div>
                     </button>
                   </div>
                 </div>
