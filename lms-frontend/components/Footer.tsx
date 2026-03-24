@@ -1,7 +1,16 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import '@/app/footer.css';
+
+const quickLinks = [
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'My Courses', href: '/courses' },
+  { label: 'Students', href: '/instructor' },
+  { label: 'Analytics', href: '/dashboard' },
+  { label: 'Settings', href: '/profile' },
+];
 
 export default function Footer() {
   return (
@@ -61,11 +70,13 @@ export default function Footer() {
         <div className="footer-section">
           <h4>Quick Links</h4>
           <ul className="footer-links">
-            <li><a href="#"><i className="fas fa-chevron-right"></i> Dashboard</a></li>
-            <li><a href="#"><i className="fas fa-chevron-right"></i> My Courses</a></li>
-            <li><a href="#"><i className="fas fa-chevron-right"></i> Students</a></li>
-            <li><a href="#"><i className="fas fa-chevron-right"></i> Analytics</a></li>
-            <li><a href="#"><i className="fas fa-chevron-right"></i> Settings</a></li>
+            {quickLinks.map((item) => (
+              <li key={item.label}>
+                <Link href={item.href}>
+                  <i className="fas fa-chevron-right"></i> {item.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 

@@ -3,13 +3,16 @@ import { deleteCourse, getCourse, updateCourse } from '@/lib/server/controllers/
 export const runtime = 'nodejs';
 
 export async function GET(request, context) {
-  return getCourse(request, { id: context.params.id });
+  const { id } = await context.params;
+  return getCourse(request, { id });
 }
 
 export async function PUT(request, context) {
-  return updateCourse(request, { id: context.params.id });
+  const { id } = await context.params;
+  return updateCourse(request, { id });
 }
 
 export async function DELETE(request, context) {
-  return deleteCourse(request, { id: context.params.id });
+  const { id } = await context.params;
+  return deleteCourse(request, { id });
 }
