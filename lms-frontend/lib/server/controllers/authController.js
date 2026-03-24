@@ -4,6 +4,14 @@ import { signToken } from '@/lib/server/utils/jwt';
 import { getAuthUser } from '@/lib/server/middleware/auth';
 import { ok, fail, handleError } from '@/lib/server/utils/response';
 
+async function parseJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+
 function appendAuthCookie(response, token) {
   response.cookies.set('token', token, {
     httpOnly: true,
@@ -17,14 +25,21 @@ function appendAuthCookie(response, token) {
 export async function register(request) {
   try {
     await connectDB();
-    const { name, email, password, role } = await request.json();
+    const body = await parseJsonBody(request);
+    if (!body) return fail('Invalid JSON body', 400);
+
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    const role = typeof body.role === 'string' ? body.role : 'student';
 
     if (!name || !email || !password) return fail('Please provide name, email, and password', 400);
+    if (!['student', 'instructor', 'admin'].includes(role)) return fail('Invalid role', 400);
 
     const userExists = await User.findOne({ email });
     if (userExists) return fail('User already exists', 400);
 
-    const user = await User.create({ name, email, password, role: role || 'student' });
+    const user = await User.create({ name, email, password, role });
     const token = signToken(user._id);
 
     const response = ok(
@@ -48,7 +63,11 @@ export async function register(request) {
 export async function login(request) {
   try {
     await connectDB();
-    const { email, password } = await request.json();
+    const body = await parseJsonBody(request);
+    if (!body) return fail('Invalid JSON body', 400);
+
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
 
     if (!email || !password) return fail('Please provide email and password', 400);
 
