@@ -2,11 +2,13 @@
   "name": "lms-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "node --env-file=.env.local scripts/seed.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -14,7 +16,10 @@
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-query-devtools": "^5.91.1",
     "axios": "^1.13.2",
+    "bcryptjs": "^2.4.3",
     "date-fns": "^4.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.23.0",
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",

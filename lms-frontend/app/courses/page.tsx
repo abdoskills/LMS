@@ -1,53 +1,39 @@
-'use client';
-
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api';
 import CourseCard from '@/components/CourseCard';
+import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
-const CoursesPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+export const dynamic = 'force-dynamic';
 
-  // Fetch all published courses
-  const { data: coursesResponse, isLoading } = useQuery({
-    queryKey: ['courses', searchTerm, selectedCategory],
-    queryFn: async () => {
-      let url = '/courses';
-      const params = new URLSearchParams();
+type CoursesPageProps = {
+  searchParams: Promise<{
+    search?: string;
+    category?: string;
+  }>;
+};
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedCategory) params.append('category', selectedCategory);
+const categories = [
+  'All',
+  'Development',
+  'Business',
+  'Design',
+  'Marketing',
+  'IT & Software',
+  'Personal Development',
+];
 
-      const queryString = params.toString();
-      if (queryString) url += '?' + queryString;
+const CoursesPage = async ({ searchParams }: CoursesPageProps) => {
+  const params = await searchParams;
+  const searchTerm = params.search || '';
+  const selectedCategory = params.category || '';
 
-      const response = await apiClient.get(url);
-      return response;
-    },
+  const { courses } = await getPublishedCourses({
+    page: 1,
+    limit: 120,
+    search: searchTerm,
+    category: selectedCategory,
   });
 
-  const courses: Course[] = coursesResponse?.data?.data || [];
-
-  // Filter courses based on search term and category
-  const filteredCourses = courses.filter((course: Course) => {
-    const matchesSearch = searchTerm === '' ||
-      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === '' || course.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = [
-    'All',
-    'Development',
-    'Business',
-    'Design',
-    'Marketing',
-    'IT & Software',
-    'Personal Development',
-  ];
+  const filteredCourses: Course[] = courses as Course[];
 
   return (
     <div className="py-6">
@@ -59,8 +45,8 @@ const CoursesPage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="mb-8 bg-white rounded-lg shadow p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form className="mb-8 bg-white rounded-lg shadow p-6" method="GET">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
             {/* Search */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -68,8 +54,8 @@ const CoursesPage: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                name="search"
+                defaultValue={searchTerm}
                 placeholder="Search by title or description..."
                 className="w-full px-3 py-2 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -81,8 +67,8 @@ const CoursesPage: React.FC = () => {
                 Category
               </label>
               <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                name="category"
+                defaultValue={selectedCategory}
                 className="w-full px-3 py-2 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {categories.map((category) => (
@@ -92,8 +78,15 @@ const CoursesPage: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            <button
+              type="submit"
+              className="md:col-span-2 w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Apply filters
+            </button>
           </div>
-        </div>
+        </form>
 
         {/* Course Grid */}
         {filteredCourses.length > 0 ? (

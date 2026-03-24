@@ -1,14 +1,13 @@
-'use client';
-
 import Link from 'next/link';
 import CourseCard from '../components/CourseCard';
 import Footer from '@/components/Footer';
-import { useCourses } from '@/hooks/useCourses';
+import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
-export default function HomePage() {
-  const { data: coursesResponse, isLoading } = useCourses();
-  const courses = coursesResponse?.filter((course: Course) => course.isPublished) || [];
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const { courses } = await getPublishedCourses({ limit: 6, page: 1 });
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-grow">
@@ -81,18 +80,7 @@ export default function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {isLoading ? (
-              Array.from({ length: 20 }).map((_, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
-                  <div className="h-48 bg-gray-300"></div>
-                  <div className="p-6">
-                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-4"></div>
-                    <div className="h-4 bg-gray-300 rounded w-1/2"></div>
-                  </div>
-                </div>
-              ))
-            ) : courses.length > 0 ? (
+            {courses.length > 0 ? (
               courses.slice(0, 6).map((course: Course) => (
                 <CourseCard key={course._id} course={course} />
               ))
