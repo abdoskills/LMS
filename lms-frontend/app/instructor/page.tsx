@@ -506,17 +506,21 @@ export default function InstructorPage() {
                     </button>
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isPublished"
-                      checked={newCourse.isPublished}
-                      onChange={(e) => setNewCourse({ ...newCourse, isPublished: e.target.checked })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-900">
-                      Publish course immediately
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Visibility
                     </label>
+                    <select
+                      value={newCourse.isPublished ? 'published' : 'draft'}
+                      onChange={(e) => setNewCourse({ ...newCourse, isPublished: e.target.value === 'published' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="draft">Draft (hidden from students)</option>
+                      <option value="published">Published (visible on Home/Courses)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Only published courses appear on public pages.
+                    </p>
                   </div>
 
                   <button

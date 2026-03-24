@@ -15,7 +15,25 @@ export async function getCourses(request) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const sort = searchParams.get('sort') || '-createdAt';
 
-    const query = { isPublished: true };
+    const query = {};
+    const instructor = searchParams.get('instructor');
+
+    if (instructor) {
+      query.instructor = instructor;
+
+      // Instructor/admin can see both drafts and published courses for instructor dashboard.
+      // Public/unauthenticated requests are restricted to published only.
+      const authUser = await getAuthUser(request, { required: false }).catch(() => null);
+      const canViewAllInstructorCourses =
+        authUser && (authUser.role === 'admin' || authUser._id.toString() === instructor);
+
+      if (!canViewAllInstructorCourses) {
+        query.isPublished = true;
+      }
+    } else {
+      query.isPublished = true;
+    }
+
     const category = searchParams.get('category');
     if (category) query.category = category;
 
