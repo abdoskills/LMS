@@ -7,7 +7,15 @@ import { Course } from '@/types';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const { courses } = await getPublishedCourses({ limit: 6, page: 1 });
+  let courses: Course[] = [];
+
+  try {
+    const result = await getPublishedCourses({ limit: 6, page: 1 });
+    courses = (result?.courses || []) as Course[];
+  } catch (error) {
+    console.error('Failed to load featured courses:', error);
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-grow">

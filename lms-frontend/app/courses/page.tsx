@@ -26,14 +26,20 @@ const CoursesPage = async ({ searchParams }: CoursesPageProps) => {
   const searchTerm = params.search || '';
   const selectedCategory = params.category || '';
 
-  const { courses } = await getPublishedCourses({
-    page: 1,
-    limit: 120,
-    search: searchTerm,
-    category: selectedCategory,
-  });
+  let filteredCourses: Course[] = [];
 
-  const filteredCourses: Course[] = courses as Course[];
+  try {
+    const { courses } = await getPublishedCourses({
+      page: 1,
+      limit: 120,
+      search: searchTerm,
+      category: selectedCategory,
+    });
+
+    filteredCourses = courses as Course[];
+  } catch (error) {
+    console.error('Failed to load courses list:', error);
+  }
 
   return (
     <div className="py-6">
