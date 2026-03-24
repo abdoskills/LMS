@@ -3,6 +3,7 @@ import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type CoursesPageProps = {
   searchParams: Promise<{

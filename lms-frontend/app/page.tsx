@@ -5,6 +5,7 @@ import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export default async function HomePage() {
   let courses: Course[] = [];
