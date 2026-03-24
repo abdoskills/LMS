@@ -73,6 +73,25 @@ export default function InstructorPage() {
         lessons: [{ title: '', description: '', videoUrl: '', duration: 0, order: 1, isPreview: false }],
         isPublished: false,
       });
+      alert('Course created successfully. Publish it to make it visible on Home/Courses pages.');
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to create course';
+      alert(message);
+    },
+  });
+
+  const togglePublish = useMutation({
+    mutationFn: async ({ courseId, isPublished }: { courseId: string; isPublished: boolean }) => {
+      return apiClient.put(`/courses/${courseId}`, { isPublished });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Failed to update course visibility';
+      alert(message);
     },
   });
 
@@ -216,6 +235,22 @@ export default function InstructorPage() {
                             </div>
                           </div>
                           <div className="flex space-x-2">
+                            <button
+                              onClick={() =>
+                                togglePublish.mutate({
+                                  courseId: course._id,
+                                  isPublished: !course.isPublished,
+                                })
+                              }
+                              disabled={togglePublish.isPending}
+                              className={`px-3 py-1 text-sm text-white rounded disabled:opacity-50 ${
+                                course.isPublished
+                                  ? 'bg-yellow-600 hover:bg-yellow-700'
+                                  : 'bg-green-600 hover:bg-green-700'
+                              }`}
+                            >
+                              {course.isPublished ? 'Unpublish' : 'Publish'}
+                            </button>
                             <Link
                               href={`/instructor/courses/${course._id}/edit`}
                               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
