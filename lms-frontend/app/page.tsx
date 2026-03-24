@@ -1,7 +1,7 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import CourseCard from '../components/CourseCard';
 import Footer from '@/components/Footer';
-import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,21 @@ export default async function HomePage() {
   let courses: Course[] = [];
 
   try {
-    const result = await getPublishedCourses({ limit: 6, page: 1 });
-    courses = (result?.courses || []) as Course[];
+    const h = await headers();
+    const host = h.get('x-forwarded-host') || h.get('host');
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const baseUrl = host ? `${proto}://${host}` : '';
+
+    if (baseUrl) {
+      const response = await fetch(`${baseUrl}/api/courses?page=1&limit=6`, {
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        courses = (payload?.data || []) as Course[];
+      }
+    }
   } catch (error) {
     console.error('Failed to load featured courses:', error);
   }

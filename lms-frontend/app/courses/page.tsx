@@ -1,5 +1,5 @@
+import { headers } from 'next/headers';
 import CourseCard from '@/components/CourseCard';
-import { getPublishedCourses } from '@/lib/server/queries/courses';
 import { Course } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -30,14 +30,25 @@ const CoursesPage = async ({ searchParams }: CoursesPageProps) => {
   let filteredCourses: Course[] = [];
 
   try {
-    const { courses } = await getPublishedCourses({
-      page: 1,
-      limit: 120,
-      search: searchTerm,
-      category: selectedCategory,
-    });
+    const h = await headers();
+    const host = h.get('x-forwarded-host') || h.get('host');
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const baseUrl = host ? `${proto}://${host}` : '';
 
-    filteredCourses = courses as Course[];
+    if (baseUrl) {
+      const query = new URLSearchParams({ page: '1', limit: '120' });
+      if (searchTerm) query.set('search', searchTerm);
+      if (selectedCategory) query.set('category', selectedCategory);
+
+      const response = await fetch(`${baseUrl}/api/courses?${query.toString()}`, {
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        filteredCourses = (payload?.data || []) as Course[];
+      }
+    }
   } catch (error) {
     console.error('Failed to load courses list:', error);
   }
